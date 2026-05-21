@@ -5,6 +5,7 @@ import Sidebar from './components/layout/Sidebar';
 import TopNav from './components/layout/TopNav';
 import DashboardPage from './pages/DashboardPage';
 import TransactionsPage from './pages/TransactionsPage';
+import AIAssistantPage from './pages/AIAssistantPage';
 
 const PlaceholderPage = ({ title }: { title: string }) => (
   <Box sx={{
@@ -29,7 +30,7 @@ function App() {
      case 'transactions': return <TransactionsPage />;
       case 'analytics': return <PlaceholderPage title="Analytics" />;
       case 'budgets': return <PlaceholderPage title="Budgets" />;
-      case 'ai-assistant': return <PlaceholderPage title="AI Assistant" />;
+     case 'ai-assistant': return <AIAssistantPage />;
       case 'settings': return <PlaceholderPage title="Settings" />;
       default: return <DashboardPage onNavigate={setActivePage} />;
     }
