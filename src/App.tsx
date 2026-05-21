@@ -1,23 +1,56 @@
-import { ThemeProvider, CssBaseline, Box, Typography } from '@mui/material'
-import { theme } from './theme/theme'
+import { ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
+import { useState } from 'react';
+import { theme } from './theme/theme';
+import Sidebar from './components/layout/Sidebar';
+import TopNav from './components/layout/TopNav';
+
+const PlaceholderPage = ({ title }: { title: string }) => (
+  <Box sx={{
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    height: '60vh', flexDirection: 'column', gap: 2,
+  }}>
+    <Box sx={{ fontSize: '3rem' }}>🚧</Box>
+    <Typography variant="h5" sx={{ fontWeight: 700 }}>{title}</Typography>
+    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+      Coming in the next branch!
+    </Typography>
+  </Box>
+);
 
 function App() {
+  const [activePage, setActivePage] = useState('dashboard');
+
+  const renderPage = () => {
+    switch (activePage) {
+      case 'dashboard': return <PlaceholderPage title="Dashboard" />;
+      case 'cards': return <PlaceholderPage title="My Cards" />;
+      case 'transactions': return <PlaceholderPage title="Transactions" />;
+      case 'analytics': return <PlaceholderPage title="Analytics" />;
+      case 'budgets': return <PlaceholderPage title="Budgets" />;
+      case 'ai-assistant': return <PlaceholderPage title="AI Assistant" />;
+      case 'settings': return <PlaceholderPage title="Settings" />;
+      default: return <PlaceholderPage title="Dashboard" />;
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{
-        minHeight: '100vh',
-        backgroundColor: 'background.default',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <Typography variant="h4" color="primary">
-          Cardify is loading... 💳
-        </Typography>
+      <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: 'background.default' }}>
+        <Sidebar activePage={activePage} onNavigate={setActivePage} />
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <TopNav activePage={activePage} />
+          <Box sx={{
+            flex: 1,
+            overflowY: 'auto',
+            p: { xs: 2, md: 4 },
+          }}>
+            {renderPage()}
+          </Box>
+        </Box>
       </Box>
     </ThemeProvider>
-  )
+  );
 }
 
-export default App
+export default App;
