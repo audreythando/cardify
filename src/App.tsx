@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { theme } from './theme/theme';
 import Sidebar from './components/layout/Sidebar';
 import TopNav from './components/layout/TopNav';
+import DashboardPage from './pages/DashboardPage';
 
 const PlaceholderPage = ({ title }: { title: string }) => (
   <Box sx={{
@@ -22,14 +23,14 @@ function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <PlaceholderPage title="Dashboard" />;
+      case 'dashboard': return <DashboardPage onNavigate={setActivePage} />;
       case 'cards': return <PlaceholderPage title="My Cards" />;
       case 'transactions': return <PlaceholderPage title="Transactions" />;
       case 'analytics': return <PlaceholderPage title="Analytics" />;
       case 'budgets': return <PlaceholderPage title="Budgets" />;
       case 'ai-assistant': return <PlaceholderPage title="AI Assistant" />;
       case 'settings': return <PlaceholderPage title="Settings" />;
-      default: return <PlaceholderPage title="Dashboard" />;
+      default: return <DashboardPage onNavigate={setActivePage} />;
     }
   };
 
@@ -40,11 +41,7 @@ function App() {
         <Sidebar activePage={activePage} onNavigate={setActivePage} />
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <TopNav activePage={activePage} />
-          <Box sx={{
-            flex: 1,
-            overflowY: 'auto',
-            p: { xs: 2, md: 4 },
-          }}>
+          <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 2, md: 4 } }}>
             {renderPage()}
           </Box>
         </Box>
