@@ -1,73 +1,97 @@
-# React + TypeScript + Vite
+# 💳 Cardify — AI-Powered Credit Card Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Azure](https://img.shields.io/badge/Azure-AI%20Powered-0078D4?style=for-the-badge&logo=microsoft-azure)](https://azure.microsoft.com/)
+[![MUI](https://img.shields.io/badge/Material%20UI-5.0-007FFF?style=for-the-badge&logo=mui)](https://mui.com/)
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 📖 What is Cardify?
 
-## React Compiler
+Cardify is a modern, full-stack AI-powered credit card management platform that helps users take control of their financial lives. It provides a unified dashboard to manage multiple credit cards, track spending patterns, analyse financial behaviour, and receive intelligent AI-driven insights — all in one place.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This project is also a hands-on learning path for the **Microsoft Azure AI Engineer Associate (AI-102)** certification, implementing real Azure AI services throughout.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## ✨ Features
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- 💳 **Card Management** — View and manage multiple credit cards, balances, and limits
+- 📊 **Spending Analytics** — Interactive charts and month-over-month comparisons
+- 🔄 **Transaction History** — Searchable, filterable transaction feed
+- 🤖 **AI Financial Assistant** — Natural language chat powered by Azure OpenAI (GPT-4o)
+- 🚨 **Anomaly Detection** — Unusual spending alerts via Azure AI
+- 🔐 **Secure Auth** — Azure Active Directory B2C integration
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🧠 Azure AI Services (AI-102 Coverage)
+
+| Service | Usage |
+|---|---|
+| Azure OpenAI (GPT-4o) | AI Financial Assistant chat |
+| Azure AI Language | Transaction categorisation & sentiment |
+| Azure AI Anomaly Detector | Unusual spending detection |
+| Azure AD B2C | Authentication & identity |
+| Azure Key Vault | Secure secrets management |
+| Azure Application Insights | Monitoring & telemetry |
+
+---
+
+## 🛠️ Tech Stack
+
+**Frontend:** React 18, TypeScript, Material UI v5, Recharts, Zustand, React Router v6
+
+**Backend:** .NET 8 Web API, Entity Framework Core, Azure SQL, Cosmos DB
+
+**DevOps:** GitHub Actions, Azure App Service, Azure Static Web Apps
+
+---
+
+## 🚀 Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Run the dev server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🌿 Git Workflow
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Every feature lives on its own branch:
+
+```bash
+git checkout -b feature/your-feature-name
+# make changes, commit often
+git push origin feature/your-feature-name
+# open PR on GitHub → merge → delete branch
 ```
+
+---
+
+## 📅 Roadmap
+
+- [x] Project setup & README
+- [ ] Theme & design system
+- [ ] Dashboard UI
+- [ ] My Cards page
+- [ ] Transactions page
+- [ ] Analytics page
+- [ ] AI Assistant chat
+- [ ] Auth pages
+- [ ] .NET backend API
+- [ ] Azure OpenAI integration
+- [ ] Azure AD B2C auth
+- [ ] CI/CD with GitHub Actions
+- [ ] Azure deployment
+
+---
+
+## 👩‍💻 Author
+
+**Audrey Thando** — Azure AI Engineer (AI-103) candidate
