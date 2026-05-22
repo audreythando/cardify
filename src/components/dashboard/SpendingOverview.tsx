@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Box, Typography, Select, MenuItem, alpha } from '@mui/material';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { mockSpendingOverview } from '../../utils/mockData';
+import { formatZAR } from '../../utils/format';
 
 const SpendingOverview: React.FC = () => {
   const [period, setPeriod] = useState('this_month');
   const { totalSpend, categories } = mockSpendingOverview;
 
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
+  const formatCurrency = formatZAR;
 
   const tooltipFormatter = (value: unknown) => {
     return [formatCurrency(value as number), ''];

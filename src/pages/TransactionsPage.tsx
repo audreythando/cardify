@@ -6,6 +6,7 @@ import {
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import { mockTransactions } from '../utils/mockData';
 import type { Transaction } from '../types';
+import { formatZAR, formatDateGrouped } from '../utils/format';
 
 const categoryColors: Record<string, string> = {
     Shopping: '#7C5CFC',
@@ -30,19 +31,10 @@ const TransactionsPage: React.FC = () => {
         return matchesSearch && matchesCat;
     });
 
-    const formatCurrency = (v: number) =>
-        new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            signDisplay: 'always',
-        }).format(v);
+    const formatCurrency = (v: number) => formatZAR(v, true);
+    const formatDate = formatDateGrouped;
 
-    const formatDate = (dateStr: string) =>
-        new Date(dateStr).toLocaleDateString('en-US', {
-            weekday: 'short', month: 'short', day: 'numeric',
-        });
 
-    // Group transactions by date
     const grouped = filtered.reduce((acc, txn) => {
         const key = formatDate(txn.date);
         if (!acc[key]) acc[key] = [];
@@ -63,8 +55,7 @@ const TransactionsPage: React.FC = () => {
                     { label: 'Total Transactions', value: mockTransactions.length },
                     {
                         label: 'Total Spent',
-                        value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-                            .format(Math.abs(mockTransactions.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0))),
+                        value: formatZAR(Math.abs(mockTransactions.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0))),
                     },
                     {
                         label: 'Pending',
@@ -129,7 +120,6 @@ const TransactionsPage: React.FC = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {Object.entries(grouped).map(([date, txns]) => (
                         <Box key={date}>
-                            {/* Date header */}
                             <Typography variant="caption" sx={{
                                 color: 'text.secondary', fontWeight: 700,
                                 textTransform: 'uppercase', letterSpacing: '0.08em',

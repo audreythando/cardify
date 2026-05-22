@@ -7,18 +7,12 @@ import CardGiftcardRoundedIcon from '@mui/icons-material/CardGiftcardRounded';
 import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
 import TrendingDownRoundedIcon from '@mui/icons-material/TrendingDownRounded';
 import { mockDashboardSummary } from '../../utils/mockData';
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-  }).format(amount);
+import { formatZAR } from '../../utils/format';
 
 const stats = [
   {
     label: 'Total Balance',
-    value: formatCurrency(mockDashboardSummary.totalBalance),
+    value: formatZAR(mockDashboardSummary.totalBalance),
     change: mockDashboardSummary.totalBalanceChange,
     changeLabel: 'from last month',
     icon: <AccountBalanceWalletRoundedIcon />,
@@ -26,14 +20,14 @@ const stats = [
   },
   {
     label: 'Total Credit Limit',
-    value: formatCurrency(mockDashboardSummary.totalCreditLimit),
-    subValue: `Available: ${formatCurrency(mockDashboardSummary.availableCredit)}`,
+    value: formatZAR(mockDashboardSummary.totalCreditLimit),
+    subValue: `Available: ${formatZAR(mockDashboardSummary.availableCredit)}`,
     icon: <CreditScoreRoundedIcon />,
     color: '#38BDF8',
   },
   {
     label: 'Monthly Spend',
-    value: formatCurrency(mockDashboardSummary.monthlySpend),
+    value: formatZAR(mockDashboardSummary.monthlySpend),
     change: mockDashboardSummary.monthlySpendChange,
     changeLabel: 'from last month',
     icon: <ShoppingCartRoundedIcon />,
@@ -41,7 +35,7 @@ const stats = [
   },
   {
     label: 'Cashback Earned',
-    value: formatCurrency(mockDashboardSummary.cashbackEarned),
+    value: formatZAR(mockDashboardSummary.cashbackEarned),
     change: mockDashboardSummary.cashbackChange,
     changeLabel: 'from last month',
     icon: <CardGiftcardRoundedIcon />,
