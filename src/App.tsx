@@ -1,4 +1,4 @@
-import { ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
+import { ThemeProvider, CssBaseline, Box } from '@mui/material';
 import { useState } from 'react';
 import { theme } from './theme/theme';
 import Sidebar from './components/layout/Sidebar';
@@ -9,22 +9,39 @@ import AIAssistantPage from './pages/AIAssistantPage';
 import CardsPage from './pages/CardsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import BudgetsPage from './pages/BudgetsPage';
+import SettingsPage from './pages/SettingsPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <Box sx={{
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    height: '60vh', flexDirection: 'column', gap: 2,
-  }}>
-    <Box sx={{ fontSize: '3rem' }}>🚧</Box>
-    <Typography variant="h5" sx={{ fontWeight: 700 }}>{title}</Typography>
-    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-      Coming in the next branch!
-    </Typography>
-  </Box>
-);
+type AuthScreen = 'login' | 'register' | 'app';
 
 function App() {
+  const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [activePage, setActivePage] = useState('dashboard');
+
+  if (authScreen === 'login') {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <LoginPage
+          onLogin={() => setAuthScreen('app')}
+          onGoToRegister={() => setAuthScreen('register')}
+        />
+      </ThemeProvider>
+    );
+  }
+
+  if (authScreen === 'register') {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <RegisterPage
+          onRegister={() => setAuthScreen('app')}
+          onGoToLogin={() => setAuthScreen('login')}
+        />
+      </ThemeProvider>
+    );
+  }
 
   const renderPage = () => {
     switch (activePage) {
@@ -34,7 +51,7 @@ function App() {
       case 'analytics': return <AnalyticsPage />;
       case 'budgets': return <BudgetsPage />;
       case 'ai-assistant': return <AIAssistantPage />;
-      case 'settings': return <PlaceholderPage title="Settings" />;
+      case 'settings': return <SettingsPage />;
       default: return <DashboardPage onNavigate={setActivePage} />;
     }
   };
