@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cardify.Domain\Cardify.Domain.csproj" />
+    <ProjectReference Include="..\Cardify.Application\Cardify.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.8">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
