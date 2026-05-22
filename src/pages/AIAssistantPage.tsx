@@ -20,14 +20,14 @@ const systemPrompt = `You are Cardify AI, a friendly and knowledgeable personal 
 
 Here is the user's current financial data:
 - Name: Audrey Thando
-- Total Balance: $${mockDashboardSummary.totalBalance}
-- Monthly Spend: $${mockDashboardSummary.monthlySpend} (${mockDashboardSummary.monthlySpendChange}% vs last month)
-- Credit Limit: $${mockDashboardSummary.totalCreditLimit}
-- Available Credit: $${mockDashboardSummary.availableCredit}
-- Cashback Earned: $${mockDashboardSummary.cashbackEarned}
+- Total Balance: R${mockDashboardSummary.totalBalance}
+- Monthly Spend: R${mockDashboardSummary.monthlySpend} (${mockDashboardSummary.monthlySpendChange}% vs last month)
+- Credit Limit: R${mockDashboardSummary.totalCreditLimit}
+- Available Credit: R${mockDashboardSummary.availableCredit}
+- Cashback Earned: R${mockDashboardSummary.cashbackEarned}
 - Top Spending Categories:
-${mockSpendingOverview.categories.map(c => `  • ${c.category}: $${c.amount} (${c.percentage}%)`).join('\n')}
-- Recent Transactions: ${mockTransactions.slice(0, 5).map(t => `${t.merchantName} $${Math.abs(t.amount)}`).join(', ')}
+${mockSpendingOverview.categories.map(c => `  • ${c.category}: R${c.amount} (${c.percentage}%)`).join('\n')}
+- Recent Transactions: ${mockTransactions.slice(0, 5).map(t => `${t.merchantName} R${Math.abs(t.amount)}`).join(', ')}
 
 Guidelines:
 - Respond in a warm, encouraging tone
@@ -42,7 +42,7 @@ const AIAssistantPage: React.FC = () => {
     {
       id: '0',
       role: 'assistant',
-      content: `👋 Hi ${mockUser.name.split(' ')[0]}! I'm your Cardify AI Financial Assistant.\n\nI've analysed your spending patterns and I'm here to help you:\n• Understand your finances\n• Optimise your budget\n• Spot unusual activity\n• Build better financial habits\n\nWhat would you like to explore today?`,
+      content: `👋 Hi ${mockUser.name.split(' ')[0]}! I'm your Cardify AI Financial Assistant.\n\nI've analysed your spending patterns for this month. Your total spend is R${mockDashboardSummary.monthlySpend.toLocaleString('en-ZA')} — here to help you:\n• Understand your finances\n• Optimise your budget\n• Spot unusual activity\n• Build better financial habits\n\nWhat would you like to explore today?`,
       timestamp: new Date().toISOString(),
     },
   ]);
