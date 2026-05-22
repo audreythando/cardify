@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import TransactionsPage from './pages/TransactionsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import CardsPage from './pages/CardsPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 
 const PlaceholderPage = ({ title }: { title: string }) => (
   <Box sx={{
@@ -27,11 +28,11 @@ function App() {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <DashboardPage onNavigate={setActivePage} />;
-     case 'cards': return <CardsPage />;
-     case 'transactions': return <TransactionsPage />;
-      case 'analytics': return <PlaceholderPage title="Analytics" />;
+      case 'cards': return <CardsPage />;
+      case 'transactions': return <TransactionsPage />;
+      case 'analytics': return <AnalyticsPage />;
       case 'budgets': return <PlaceholderPage title="Budgets" />;
-     case 'ai-assistant': return <AIAssistantPage />;
+      case 'ai-assistant': return <AIAssistantPage />;
       case 'settings': return <PlaceholderPage title="Settings" />;
       default: return <DashboardPage onNavigate={setActivePage} />;
     }
