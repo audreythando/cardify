@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Chip, alpha } from '@mui/material';
 import { mockTransactions } from '../../utils/mockData';
+import { formatZAR, formatDate } from '../../utils/format';
 
 const categoryColors: Record<string, string> = {
   Shopping: '#7C5CFC',
@@ -16,17 +17,9 @@ const categoryColors: Record<string, string> = {
 const RecentTransactions: React.FC = () => {
   const recent = mockTransactions.slice(0, 6);
 
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      signDisplay: 'always',
-    }).format(v);
+  const formatCurrency = (v: number) => formatZAR(v, true);
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-    });
+
 
   return (
     <Box sx={{
