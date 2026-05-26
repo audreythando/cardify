@@ -1,6 +1,0 @@
-<Solution>
-  <Project Path="Cardify.API/Cardify.API.csproj" />
-  <Project Path="Cardify.Application/Cardify.Application.csproj" />
-  <Project Path="Cardify.Domain/Cardify.Domain.csproj" />
-  <Project Path="Cardify.Infrastructure/Cardify.Infrastructure.csproj" />
-</Solution>

@@ -1,6 +1,6 @@
-@Cardify.API_HostAddress = http://localhost:5131
+@Cardify.Api_HostAddress = http://localhost:5271
 
-GET {{Cardify.API_HostAddress}}/weatherforecast/
+GET {{Cardify.Api_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
