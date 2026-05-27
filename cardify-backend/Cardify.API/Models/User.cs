@@ -15,4 +15,6 @@ public class User
     public List<CreditCard> CreditCards { get; set; } = new();
 
     public List<Budget> Budgets { get; set; } = new();
+
+    public List<AiInsight> AiInsights { get; set; } = new();
 }
