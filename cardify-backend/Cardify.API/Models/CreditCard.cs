@@ -1,0 +1,26 @@
+namespace Cardify.Api.Models;
+
+public class CreditCard
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string CardHolderName { get; set; } = string.Empty;
+
+    public string CardNumber { get; set; } = string.Empty;
+
+    public string CardType { get; set; } = string.Empty;
+
+    public decimal Balance { get; set; }
+
+    public decimal CreditLimit { get; set; }
+
+    public DateTime ExpiryDate { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
+    public Guid UserId { get; set; }
+
+    public User? User { get; set; }
+
+    public List<Transaction> Transactions { get; set; } = new();
+}
