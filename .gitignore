@@ -24,3 +24,9 @@ Thumbs.db
 
 # Logs
 npm-debug.log*
+
+# Local backend secrets
+cardify-backend/Cardify.Api/appsettings.Local.json
+cardify-backend/Cardify.API/appsettings.Local.json
+.env
+.env.local
