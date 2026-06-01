@@ -4,18 +4,23 @@ using Cardify.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace Cardify.Api.Services;
 
 public class AuthService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _configuration;
 
-    public AuthService(ApplicationDbContext context)
-    {
-        _context = context;
-    }
-
+public AuthService(ApplicationDbContext context, IConfiguration configuration)
+{
+    _context = context;
+    _configuration = configuration;
+}
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
         var existingUser = await _context.Users
@@ -44,9 +49,39 @@ public class AuthService
             UserId = user.Id,
             FullName = user.FullName,
             Email = user.Email,
-            Token = "JWT_TOKEN_COMING_NEXT"
+            Token = CreateToken(user)
         };
     }
+
+    public async Task<AuthResponse?> LoginAsync(LoginRequest request)
+{
+    var user = await _context.Users
+        .FirstOrDefaultAsync(user => user.Email == request.Email);
+
+    if (user is null)
+    {
+        return null;
+    }
+
+    var isPasswordValid = VerifyPasswordHash(
+        request.Password,
+        user.PasswordHash,
+        user.PasswordSalt
+    );
+
+    if (!isPasswordValid)
+    {
+        return null;
+    }
+
+    return new AuthResponse
+    {
+        UserId = user.Id,
+        FullName = user.FullName,
+        Email = user.Email,
+        Token = CreateToken(user)
+    };
+}
 
     private static void CreatePasswordHash(string password, out string passwordHash, out string passwordSalt)
     {
@@ -58,4 +93,48 @@ public class AuthService
 
         passwordHash = Convert.ToBase64String(hashBytes);
     }
+
+    private static bool VerifyPasswordHash(
+    string password,
+    string storedHash,
+    string storedSalt)
+{
+    var saltBytes = Convert.FromBase64String(storedSalt);
+
+    using var hmac = new HMACSHA512(saltBytes);
+
+    var computedHash = hmac.ComputeHash(
+        Encoding.UTF8.GetBytes(password)
+    );
+
+    var computedHashString = Convert.ToBase64String(computedHash);
+
+    return computedHashString == storedHash;
+}
+
+    private string CreateToken(User user)
+{
+    var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim(ClaimTypes.Name, user.FullName),
+        new Claim(ClaimTypes.Email, user.Email)
+    };
+
+    var key = new SymmetricSecurityKey(
+        Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
+    );
+
+    var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+    var token = new JwtSecurityToken(
+        issuer: _configuration["Jwt:Issuer"],
+        audience: _configuration["Jwt:Audience"],
+        claims: claims,
+        expires: DateTime.UtcNow.AddHours(2),
+        signingCredentials: credentials
+    );
+
+    return new JwtSecurityTokenHandler().WriteToken(token);
+}
 }
