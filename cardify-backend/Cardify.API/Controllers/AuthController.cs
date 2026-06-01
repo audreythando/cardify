@@ -1,6 +1,8 @@
 using Cardify.Api.DTOs.Auth;
 using Cardify.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Cardify.Api.Controllers;
 
@@ -40,4 +42,21 @@ public async Task<IActionResult> Login(LoginRequest request)
 
     return Ok(result);
 }
+
+[Authorize]
+[HttpGet("me")]
+public IActionResult GetCurrentUser()
+{
+    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var fullName = User.FindFirstValue(ClaimTypes.Name);
+    var email = User.FindFirstValue(ClaimTypes.Email);
+
+    return Ok(new
+    {
+        userId,
+        fullName,
+        email
+    });
+}
+
 }
