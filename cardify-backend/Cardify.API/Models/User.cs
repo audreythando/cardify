@@ -17,4 +17,8 @@ public class User
     public List<Budget> Budgets { get; set; } = new();
 
     public List<AiInsight> AiInsights { get; set; } = new();
+
+    public string PasswordHash { get; set; } = string.Empty;
+
+public string PasswordSalt { get; set; } = string.Empty;
 }
