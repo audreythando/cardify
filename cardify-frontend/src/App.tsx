@@ -15,16 +15,34 @@ import RegisterPage from './pages/RegisterPage';
 
 type AuthScreen = 'login' | 'register' | 'app';
 
+const hasToken = () => {
+  return !!localStorage.getItem('cardify_token');
+};
+
 function App() {
-  const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
+  const [authScreen, setAuthScreen] = useState<AuthScreen>(
+    hasToken() ? 'app' : 'login'
+  );
+
   const [activePage, setActivePage] = useState('dashboard');
+
+  const handleLogin = () => {
+    setAuthScreen('app');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('cardify_token');
+    localStorage.removeItem('cardify_user');
+    setAuthScreen('login');
+    setActivePage('dashboard');
+  };
 
   if (authScreen === 'login') {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <LoginPage
-          onLogin={() => setAuthScreen('app')}
+          onLogin={handleLogin}
           onGoToRegister={() => setAuthScreen('register')}
         />
       </ThemeProvider>
@@ -36,7 +54,7 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <RegisterPage
-          onRegister={() => setAuthScreen('app')}
+          onRegister={handleLogin}
           onGoToLogin={() => setAuthScreen('login')}
         />
       </ThemeProvider>
@@ -45,22 +63,41 @@ function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <DashboardPage onNavigate={setActivePage} />;
-      case 'cards': return <CardsPage />;
-      case 'transactions': return <TransactionsPage />;
-      case 'analytics': return <AnalyticsPage />;
-      case 'budgets': return <BudgetsPage />;
-      case 'ai-assistant': return <AIAssistantPage />;
-      case 'settings': return <SettingsPage />;
-      default: return <DashboardPage onNavigate={setActivePage} />;
+      case 'dashboard':
+        return <DashboardPage onNavigate={setActivePage} />;
+      case 'cards':
+        return <CardsPage />;
+      case 'transactions':
+        return <TransactionsPage />;
+      case 'analytics':
+        return <AnalyticsPage />;
+      case 'budgets':
+        return <BudgetsPage />;
+      case 'ai-assistant':
+        return <AIAssistantPage />;
+      case 'settings':
+        return <SettingsPage />;
+      default:
+        return <DashboardPage onNavigate={setActivePage} />;
     }
   };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: 'background.default' }}>
-        <Sidebar activePage={activePage} onNavigate={setActivePage} />
+      <Box
+        sx={{
+          display: 'flex',
+          minHeight: '100vh',
+          backgroundColor: 'background.default',
+        }}
+      >
+        <Sidebar
+          activePage={activePage}
+          onNavigate={setActivePage}
+          onLogout={handleLogout}
+        />
+
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <TopNav activePage={activePage} />
           <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 2, md: 4 } }}>

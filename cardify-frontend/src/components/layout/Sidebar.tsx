@@ -39,6 +39,7 @@ const navItems = [
 interface SidebarProps {
   activePage: string;
   onNavigate: (page: string) => void;
+  onLogout: () => void;
 }
 
 interface StoredUser {
@@ -77,13 +78,13 @@ const getInitials = (name?: string) => {
     .toUpperCase();
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) => {
   const user = getStoredUser();
 
-  const handleLogout = () => {
-    logout();
-    window.location.href = '/';
-  };
+const handleLogout = () => {
+  logout();
+  onLogout();
+};
 
   return (
     <Drawer
