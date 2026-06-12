@@ -3,47 +3,46 @@ import { Box, Typography, alpha } from '@mui/material';
 import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
 import CreditScoreRoundedIcon from '@mui/icons-material/CreditScoreRounded';
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
-import CardGiftcardRoundedIcon from '@mui/icons-material/CardGiftcardRounded';
-import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
-import TrendingDownRoundedIcon from '@mui/icons-material/TrendingDownRounded';
-import { mockDashboardSummary } from '../../utils/mockData';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import { formatZAR } from '../../utils/format';
+import type { DashboardSummary } from '../../services/dashboardService';
 
-const stats = [
-  {
-    label: 'Total Balance',
-    value: formatZAR(mockDashboardSummary.totalBalance),
-    change: mockDashboardSummary.totalBalanceChange,
-    changeLabel: 'from last month',
-    icon: <AccountBalanceWalletRoundedIcon />,
-    color: '#7C5CFC',
-  },
-  {
-    label: 'Total Credit Limit',
-    value: formatZAR(mockDashboardSummary.totalCreditLimit),
-    subValue: `Available: ${formatZAR(mockDashboardSummary.availableCredit)}`,
-    icon: <CreditScoreRoundedIcon />,
-    color: '#38BDF8',
-  },
-  {
-    label: 'Monthly Spend',
-    value: formatZAR(mockDashboardSummary.monthlySpend),
-    change: mockDashboardSummary.monthlySpendChange,
-    changeLabel: 'from last month',
-    icon: <ShoppingCartRoundedIcon />,
-    color: '#FF5A7E',
-  },
-  {
-    label: 'Cashback Earned',
-    value: formatZAR(mockDashboardSummary.cashbackEarned),
-    change: mockDashboardSummary.cashbackChange,
-    changeLabel: 'from last month',
-    icon: <CardGiftcardRoundedIcon />,
-    color: '#00D4AA',
-  },
-];
+interface StatCardsProps {
+  summary: DashboardSummary;
+}
 
-const StatCards: React.FC = () => {
+const StatCards: React.FC<StatCardsProps> = ({ summary }) => {
+  const stats = [
+    {
+      label: 'Total Balance',
+      value: formatZAR(summary.totalBalance),
+      subValue: `${summary.totalCards} active card${summary.totalCards === 1 ? '' : 's'}`,
+      icon: <AccountBalanceWalletRoundedIcon />,
+      color: '#7C5CFC',
+    },
+    {
+      label: 'Total Credit Limit',
+      value: formatZAR(summary.totalCreditLimit),
+      subValue: `Available: ${formatZAR(summary.availableCredit)}`,
+      icon: <CreditScoreRoundedIcon />,
+      color: '#38BDF8',
+    },
+    {
+      label: 'Monthly Spend',
+      value: formatZAR(summary.totalSpentThisMonth),
+      subValue: 'Spent this month',
+      icon: <ShoppingCartRoundedIcon />,
+      color: '#FF5A7E',
+    },
+    {
+      label: 'Transactions',
+      value: summary.totalTransactions.toString(),
+      subValue: `${summary.totalBudgets} budget${summary.totalBudgets === 1 ? '' : 's'} tracked`,
+      icon: <ReceiptLongRoundedIcon />,
+      color: '#00D4AA',
+    },
+  ];
+
   return (
     <Box
       sx={{
@@ -72,59 +71,51 @@ const StatCards: React.FC = () => {
             },
           }}
         >
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            mb: 1.5,
-          }}>
-            <Typography variant="caption" sx={{
-              color: 'text.secondary',
-              fontWeight: 500,
-              fontSize: '0.75rem',
-            }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              mb: 1.5,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+                fontWeight: 500,
+                fontSize: '0.75rem',
+              }}
+            >
               {stat.label}
             </Typography>
-            <Box sx={{
-              width: 36,
-              height: 36,
-              borderRadius: 2,
-              backgroundColor: alpha(stat.color, 0.12),
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              '& svg': { fontSize: 18, color: stat.color },
-            }}>
+
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: 2,
+                backgroundColor: alpha(stat.color, 0.12),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                '& svg': { fontSize: 18, color: stat.color },
+              }}
+            >
               {stat.icon}
             </Box>
           </Box>
 
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5, fontSize: '1.3rem' }}>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, mb: 0.5, fontSize: '1.3rem' }}
+          >
             {stat.value}
           </Typography>
 
-          {stat.subValue && (
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {stat.subValue}
-            </Typography>
-          )}
-
-          {stat.change !== undefined && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-              {stat.change >= 0 ? (
-                <TrendingUpRoundedIcon sx={{ fontSize: 14, color: 'success.main' }} />
-              ) : (
-                <TrendingDownRoundedIcon sx={{ fontSize: 14, color: 'error.main' }} />
-              )}
-              <Typography variant="caption" sx={{
-                color: stat.change >= 0 ? 'success.main' : 'error.main',
-                fontWeight: 600,
-                fontSize: '0.72rem',
-              }}>
-                {stat.change >= 0 ? '+' : ''}{stat.change}% {stat.changeLabel}
-              </Typography>
-            </Box>
-          )}
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {stat.subValue}
+          </Typography>
         </Box>
       ))}
     </Box>

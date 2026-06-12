@@ -1,33 +1,99 @@
-import React, { useState } from 'react';
-import { Box, Typography, Select, MenuItem, alpha } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import {
+  Box,
+  Typography,
+  Select,
+  MenuItem,
+  alpha,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { mockSpendingOverview } from '../../utils/mockData';
 import { formatZAR } from '../../utils/format';
+import {
+  getSpendingByCategory,
+  type SpendingByCategory,
+} from '../../services/dashboardService';
+
+const colors = [
+  '#7C5CFC',
+  '#00D4AA',
+  '#FFB547',
+  '#FF5A7E',
+  '#A78BFA',
+  '#38BDF8',
+  '#34D399',
+  '#FB923C',
+];
+
+interface SpendingCategoryChartItem {
+  category: string;
+  amount: number;
+  percentage: number;
+  color: string;
+}
 
 const SpendingOverview: React.FC = () => {
   const [period, setPeriod] = useState('this_month');
-  const { totalSpend, categories } = mockSpendingOverview;
+  const [categories, setCategories] = useState<SpendingCategoryChartItem[]>([]);
+  const [totalSpend, setTotalSpend] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const formatCurrency = formatZAR;
+
+  useEffect(() => {
+    const loadSpending = async () => {
+      try {
+        const data: SpendingByCategory[] = await getSpendingByCategory();
+
+        const total = data.reduce((sum, item) => sum + item.totalSpent, 0);
+
+        const mapped = data.map((item, index) => ({
+          category: item.category,
+          amount: item.totalSpent,
+          percentage: total === 0 ? 0 : Math.round((item.totalSpent / total) * 100),
+          color: colors[index % colors.length],
+        }));
+
+        setCategories(mapped);
+        setTotalSpend(total);
+      } catch {
+        setError('Could not load spending overview.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSpending();
+  }, []);
 
   const tooltipFormatter = (value: unknown) => {
     return [formatCurrency(value as number), ''];
   };
 
   return (
-    <Box sx={{
-      p: 3, borderRadius: 3,
-      background: '#161A23',
-      border: '1px solid rgba(255,255,255,0.06)',
-      height: '100%',
-    }}>
-      <Box sx={{
-        display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', mb: 3,
-      }}>
+    <Box
+      sx={{
+        p: 3,
+        borderRadius: 3,
+        background: '#161A23',
+        border: '1px solid rgba(255,255,255,0.06)',
+        height: '100%',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 3,
+        }}
+      >
         <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
           Spending Overview
         </Typography>
+
         <Select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
@@ -47,98 +113,150 @@ const SpendingOverview: React.FC = () => {
         </Select>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-        <Box sx={{ position: 'relative', width: 180, height: 180, flexShrink: 0 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={categories}
-                cx="50%"
-                cy="50%"
-                innerRadius={58}
-                outerRadius={85}
-                paddingAngle={2}
-                dataKey="amount"
-                stroke="none"
-              >
-                {categories.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={tooltipFormatter}
-                contentStyle={{
-                  backgroundColor: '#1E2330',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12,
-                  fontSize: 12,
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-
-          <Box sx={{
-            position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            pointerEvents: 'none',
-          }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700 }}>
-              {formatCurrency(totalSpend)}
-            </Typography>
-            <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
-              Total Spend
-            </Typography>
-          </Box>
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress size={24} />
         </Box>
+      )}
 
-        <Box sx={{ flex: 1 }}>
-          {categories.map((cat) => (
-            <Box key={cat.category} sx={{
-              display: 'flex', alignItems: 'center',
-              justifyContent: 'space-between', mb: 1.2,
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  backgroundColor: cat.color, flexShrink: 0,
-                }} />
-                <Typography variant="caption" sx={{
-                  color: 'text.secondary', fontSize: '0.78rem',
-                }}>
-                  {cat.category}
+      {error && <Alert severity="error">{error}</Alert>}
+
+      {!loading && !error && categories.length === 0 && (
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          No spending data yet.
+        </Typography>
+      )}
+
+      {!loading && !error && categories.length > 0 && (
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Box sx={{ position: 'relative', width: 180, height: 180, flexShrink: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categories}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={58}
+                    outerRadius={85}
+                    paddingAngle={2}
+                    dataKey="amount"
+                    stroke="none"
+                  >
+                    {categories.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+
+                  <Tooltip
+                    formatter={tooltipFormatter}
+                    contentStyle={{
+                      backgroundColor: '#1E2330',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
+                }}
+              >
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700 }}>
+                  {formatCurrency(totalSpend)}
                 </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.78rem' }}>
-                  {formatCurrency(cat.amount)}
-                </Typography>
-                <Typography variant="caption" sx={{
-                  fontSize: '0.72rem',
-                  backgroundColor: alpha(cat.color, 0.12),
-                  color: cat.color,
-                  px: 0.7, py: 0.1, borderRadius: 1, fontWeight: 600,
-                }}>
-                  {cat.percentage}%
+                <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                  Total Spend
                 </Typography>
               </Box>
             </Box>
-          ))}
-        </Box>
-      </Box>
 
-      <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <Typography
-          component="a" href="#"
-          sx={{
-            color: 'primary.main', fontSize: '0.8rem',
-            fontWeight: 600, textDecoration: 'none',
-            '&:hover': { color: 'primary.light' },
-          }}
-        >
-          View Full Analytics →
-        </Typography>
-      </Box>
+            <Box sx={{ flex: 1 }}>
+              {categories.map((cat) => (
+                <Box
+                  key={cat.category}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    mb: 1.2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: cat.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'text.secondary',
+                        fontSize: '0.78rem',
+                      }}
+                    >
+                      {cat.category}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 600, fontSize: '0.78rem' }}
+                    >
+                      {formatCurrency(cat.amount)}
+                    </Typography>
+
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: '0.72rem',
+                        backgroundColor: alpha(cat.color, 0.12),
+                        color: cat.color,
+                        px: 0.7,
+                        py: 0.1,
+                        borderRadius: 1,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {cat.percentage}%
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+
+          <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            <Typography
+              component="a"
+              href="#"
+              sx={{
+                color: 'primary.main',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                textDecoration: 'none',
+                '&:hover': { color: 'primary.light' },
+              }}
+            >
+              View Full Analytics →
+            </Typography>
+          </Box>
+        </>
+      )}
     </Box>
   );
 };
