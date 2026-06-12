@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import type { CreditCard } from '../../types';
+import { formatZAR } from '../../utils/format';
 
 const cardGradients: Record<string, string> = {
   purple: 'linear-gradient(135deg, #7C5CFC 0%, #4A2EC7 50%, #3B1FA8 100%)',
@@ -131,7 +132,7 @@ const CardDisplay: React.FC<CardDisplayProps> = ({
             fontSize: isLarge ? '1rem' : '0.8rem',
             fontWeight: 700, color: '#fff', lineHeight: 1,
           }}>
-            ${card.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+           {formatZAR(card.balance)}
           </Typography>
           <Typography sx={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', mt: 0.2 }}>
             Current Balance
