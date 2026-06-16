@@ -111,6 +111,8 @@ public async Task<IActionResult> GetSpendingByCategory()
     return Ok(response);
 }
 
+
+
     private Guid GetCurrentUserId()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

@@ -6,6 +6,7 @@ import {
   alpha,
   CircularProgress,
   Alert,
+  Chip,
 } from '@mui/material';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
@@ -15,10 +16,35 @@ interface AIAssistantPanelProps {
   onOpenChat?: () => void;
 }
 
+const getInsightColor = (type: string) => {
+  const value = type.toLowerCase();
+
+  if (value.includes('warning')) return '#FFB547';
+  if (value.includes('alert')) return '#FF5A7E';
+  if (value.includes('success')) return '#00D4AA';
+
+  return '#7C5CFC';
+};
+
+const getStoredFirstName = () => {
+  const rawUser = localStorage.getItem('cardify_user');
+
+  if (!rawUser) return 'there';
+
+  try {
+    const user = JSON.parse(rawUser) as { fullName?: string };
+    return user.fullName?.split(' ')[0] || 'there';
+  } catch {
+    return 'there';
+  }
+};
+
 const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({ onOpenChat }) => {
   const [insights, setInsights] = useState<AiInsight[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error] = useState('');
+
+  const firstName = getStoredFirstName();
 
   useEffect(() => {
     const loadInsights = async () => {
@@ -26,7 +52,13 @@ const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({ onOpenChat }) => {
         const data = await getAiInsights();
         setInsights(data.slice(0, 3));
       } catch {
-        setError('Could not load AI insights.');
+        setInsights([
+          {
+            title: 'Ask Cardify AI',
+            message: 'Open the chat to get personalised advice from your local Ollama assistant.',
+            insightType: 'Info',
+          },
+        ]);
       } finally {
         setLoading(false);
       }
@@ -68,7 +100,7 @@ const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({ onOpenChat }) => {
           </Box>
 
           <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            AI Assistant
+            Cardify AI
           </Typography>
         </Box>
 
@@ -88,7 +120,7 @@ const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({ onOpenChat }) => {
             '&:hover': { color: 'primary.light' },
           }}
         >
-          View Chat
+          Open Chat
         </Typography>
       </Box>
 
@@ -106,7 +138,7 @@ const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({ onOpenChat }) => {
           variant="caption"
           sx={{ color: 'text.primary', lineHeight: 1.6, display: 'block' }}
         >
-          👋 Hi Audrey! I've analysed your spending this month.
+          👋 Hi {firstName}! I reviewed your latest Cardify data.
         </Typography>
 
         <Typography
@@ -116,10 +148,10 @@ const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({ onOpenChat }) => {
             fontWeight: 600,
             display: 'block',
             mt: 1,
-            mb: 0.5,
+            mb: 0.75,
           }}
         >
-          Here are some insights:
+          Quick insights:
         </Typography>
 
         {loading && (
@@ -128,39 +160,95 @@ const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({ onOpenChat }) => {
           </Box>
         )}
 
-        {error && <Alert severity="error">{error}</Alert>}
+        {error && (
+          <Alert severity="error" sx={{ mt: 1 }}>
+            {error}
+          </Alert>
+        )}
 
         {!loading && !error && insights.length === 0 && (
           <Typography
             variant="caption"
-            sx={{ color: 'text.secondary', fontSize: '0.72rem', lineHeight: 1.4 }}
+            sx={{
+              color: 'text.secondary',
+              fontSize: '0.72rem',
+              lineHeight: 1.4,
+              display: 'block',
+            }}
           >
-            No insights yet. Add budgets and transactions to generate personalised insights.
+            Add budgets and transactions to unlock personalised AI insights.
           </Typography>
         )}
 
         {!loading &&
           !error &&
-          insights.map((insight) => (
-            <Box
-              key={`${insight.title}-${insight.message}`}
-              sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}
-            >
-              <Typography
-                variant="caption"
-                sx={{ color: 'primary.light', fontSize: '0.7rem' }}
-              >
-                •
-              </Typography>
+          insights.map((insight) => {
+            const color = getInsightColor(insight.insightType);
 
-              <Typography
-                variant="caption"
-                sx={{ color: 'text.secondary', fontSize: '0.72rem', lineHeight: 1.4 }}
+            return (
+              <Box
+                key={`${insight.title}-${insight.message}`}
+                sx={{
+                  mt: 1,
+                  p: 1,
+                  borderRadius: 1.5,
+                  backgroundColor: alpha(color, 0.08),
+                  border: '1px solid',
+                  borderColor: alpha(color, 0.16),
+                }}
               >
-                {insight.title}: {insight.message}
-              </Typography>
-            </Box>
-          ))}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.4 }}>
+                  <Box
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      backgroundColor: color,
+                      flexShrink: 0,
+                    }}
+                  />
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 700,
+                      fontSize: '0.72rem',
+                    }}
+                  >
+                    {insight.title}
+                  </Typography>
+
+                  {insight.insightType && (
+                    <Chip
+                      label={insight.insightType}
+                      size="small"
+                      sx={{
+                        ml: 'auto',
+                        height: 17,
+                        fontSize: '0.58rem',
+                        fontWeight: 700,
+                        backgroundColor: alpha(color, 0.15),
+                        color,
+                      }}
+                    />
+                  )}
+                </Box>
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '0.7rem',
+                    lineHeight: 1.45,
+                    display: 'block',
+                  }}
+                >
+                  {insight.message}
+                </Typography>
+              </Box>
+            );
+          })}
       </Box>
 
       <Button
@@ -171,7 +259,7 @@ const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({ onOpenChat }) => {
         onClick={onOpenChat}
         sx={{ py: 1, fontSize: '0.8rem' }}
       >
-        Show me how to save
+        Ask Cardify AI
       </Button>
     </Box>
   );

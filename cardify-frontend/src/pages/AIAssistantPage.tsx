@@ -1,12 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Box, Typography, TextField, IconButton,
-  CircularProgress, Chip, Avatar, alpha
+  Box,
+  Typography,
+  TextField,
+  IconButton,
+  CircularProgress,
+  Chip,
+  Avatar,
+  alpha,
 } from '@mui/material';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import type { ChatMessage } from '../types';
-import { mockUser, mockDashboardSummary, mockSpendingOverview, mockTransactions } from '../utils/mockData';
+import { generateFinancialInsight } from '../services/aiService';
 
 const SUGGESTED_PROMPTS = [
   'How can I reduce my spending this month?',
@@ -16,36 +22,60 @@ const SUGGESTED_PROMPTS = [
   'Are there any unusual transactions?',
 ];
 
-const systemPrompt = `You are Cardify AI, a friendly and knowledgeable personal finance assistant embedded in the Cardify credit card management app. You help users understand their spending, manage budgets, and improve their financial health.
+const getStoredUser = () => {
+  const rawUser = localStorage.getItem('cardify_user');
 
-Here is the user's current financial data:
-- Name: Audrey Thando
-- Total Balance: R${mockDashboardSummary.totalBalance}
-- Monthly Spend: R${mockDashboardSummary.monthlySpend} (${mockDashboardSummary.monthlySpendChange}% vs last month)
-- Credit Limit: R${mockDashboardSummary.totalCreditLimit}
-- Available Credit: R${mockDashboardSummary.availableCredit}
-- Cashback Earned: R${mockDashboardSummary.cashbackEarned}
-- Top Spending Categories:
-${mockSpendingOverview.categories.map(c => `  • ${c.category}: R${c.amount} (${c.percentage}%)`).join('\n')}
-- Recent Transactions: ${mockTransactions.slice(0, 5).map(t => `${t.merchantName} R${Math.abs(t.amount)}`).join(', ')}
+  if (!rawUser) {
+    return {
+      fullName: 'Cardify User',
+      email: 'user@cardify.app',
+    };
+  }
 
-Guidelines:
-- Respond in a warm, encouraging tone
-- Keep answers concise but insightful
-- Use bullet points for lists
-- Format currency in USD
-- When suggesting savings, be specific with numbers
-- This is relevant to the Azure AI-102 certification — you demonstrate real Azure OpenAI integration`;
+  try {
+    return JSON.parse(rawUser) as {
+      fullName?: string;
+      email?: string;
+    };
+  } catch {
+    return {
+      fullName: 'Cardify User',
+      email: 'user@cardify.app',
+    };
+  }
+};
+
+const getInitials = (name?: string) => {
+  if (!name) return 'CU';
+
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+};
 
 const AIAssistantPage: React.FC = () => {
+  const user = getStoredUser();
+  const firstName = user.fullName?.split(' ')[0] || 'there';
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '0',
       role: 'assistant',
-      content: `👋 Hi ${mockUser.name.split(' ')[0]}! I'm your Cardify AI Financial Assistant.\n\nI've analysed your spending patterns for this month. Your total spend is R${mockDashboardSummary.monthlySpend.toLocaleString('en-ZA')} — here to help you:\n• Understand your finances\n• Optimise your budget\n• Spot unusual activity\n• Build better financial habits\n\nWhat would you like to explore today?`,
+      content: `👋 Hi ${firstName}! I'm your Cardify AI Financial Assistant.
+
+I can help you understand your spending, budgets, card usage, and financial habits.
+
+Ask me things like:
+• How can I reduce my spending?
+• Which category should I watch?
+• Am I on track with my budget?`,
       timestamp: new Date().toISOString(),
     },
   ]);
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -64,44 +94,33 @@ const AIAssistantPage: React.FC = () => {
       timestamp: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const history = [...messages, userMsg]
-        .filter(m => !m.isLoading)
-        .map(m => ({ role: m.role, content: m.content }));
+      const replyText = await generateFinancialInsight(text);
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages: history,
-        }),
-      });
-
-      const data = await response.json();
-      const replyText = data.content
-        ?.map((c: { type: string; text?: string }) => c.text || '')
-        .join('') || 'Sorry, I could not process that. Please try again.';
-
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: replyText,
-        timestamp: new Date().toISOString(),
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: replyText,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } catch {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '⚠️ Could not connect right now. In production this will use Azure OpenAI (GPT-4o) — the same integration you will configure for AI-102.',
-        timestamp: new Date().toISOString(),
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content:
+            '⚠️ Could not connect to Cardify AI right now. Make sure the .NET backend is running and Ollama is available locally.',
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -115,61 +134,85 @@ const AIAssistantPage: React.FC = () => {
   };
 
   const formatTime = (ts: string) =>
-    new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    new Date(ts).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 130px)' }}>
-
       <Box sx={{ flex: 1, overflowY: 'auto', px: 1, py: 2 }}>
         {messages.map((msg) => (
-          <Box key={msg.id} sx={{
-            display: 'flex',
-            flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-            gap: 1.5, mb: 2.5,
-          }}>
-            {/* Avatar */}
+          <Box
+            key={msg.id}
+            sx={{
+              display: 'flex',
+              flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+              gap: 1.5,
+              mb: 2.5,
+            }}
+          >
             {msg.role === 'assistant' ? (
-              <Box sx={{
-                width: 34, height: 34, borderRadius: 2, flexShrink: 0,
-                background: 'linear-gradient(135deg, #7C5CFC, #00D4AA)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                mt: 0.5,
-              }}>
+              <Box
+                sx={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 2,
+                  flexShrink: 0,
+                  background: 'linear-gradient(135deg, #7C5CFC, #00D4AA)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mt: 0.5,
+                }}
+              >
                 <AutoAwesomeRoundedIcon sx={{ fontSize: 16, color: '#fff' }} />
               </Box>
             ) : (
-              <Avatar
-                src={mockUser.avatarUrl}
-                sx={{ width: 34, height: 34, mt: 0.5, flexShrink: 0 }}
-              />
+              <Avatar sx={{ width: 34, height: 34, mt: 0.5, flexShrink: 0, bgcolor: 'primary.main' }}>
+                {getInitials(user.fullName)}
+              </Avatar>
             )}
 
             <Box sx={{ maxWidth: '72%' }}>
-              <Box sx={{
-                p: 2,
-                borderRadius: msg.role === 'user'
-                  ? '16px 4px 16px 16px'
-                  : '4px 16px 16px 16px',
-                backgroundColor: msg.role === 'user'
-                  ? alpha('#7C5CFC', 0.2)
-                  : '#1E2330',
-                border: '1px solid',
-                borderColor: msg.role === 'user'
-                  ? alpha('#7C5CFC', 0.3)
-                  : 'rgba(255,255,255,0.06)',
-              }}>
-                <Typography variant="body2" sx={{
-                  fontSize: '0.875rem', lineHeight: 1.7,
-                  whiteSpace: 'pre-wrap',
-                }}>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius:
+                    msg.role === 'user'
+                      ? '16px 4px 16px 16px'
+                      : '4px 16px 16px 16px',
+                  backgroundColor:
+                    msg.role === 'user' ? alpha('#7C5CFC', 0.2) : '#1E2330',
+                  border: '1px solid',
+                  borderColor:
+                    msg.role === 'user'
+                      ? alpha('#7C5CFC', 0.3)
+                      : 'rgba(255,255,255,0.06)',
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: '0.875rem',
+                    lineHeight: 1.7,
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
                   {msg.content}
                 </Typography>
               </Box>
-              <Typography variant="caption" sx={{
-                color: 'text.secondary', fontSize: '0.68rem', mt: 0.5,
-                display: 'block',
-                textAlign: msg.role === 'user' ? 'right' : 'left',
-              }}>
+
+              <Typography
+                variant="caption"
+                sx={{
+                  color: 'text.secondary',
+                  fontSize: '0.68rem',
+                  mt: 0.5,
+                  display: 'block',
+                  textAlign: msg.role === 'user' ? 'right' : 'left',
+                }}
+              >
                 {formatTime(msg.timestamp)}
               </Typography>
             </Box>
@@ -178,22 +221,34 @@ const AIAssistantPage: React.FC = () => {
 
         {isLoading && (
           <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
-            <Box sx={{
-              width: 34, height: 34, borderRadius: 2,
-              background: 'linear-gradient(135deg, #7C5CFC, #00D4AA)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
+            <Box
+              sx={{
+                width: 34,
+                height: 34,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #7C5CFC, #00D4AA)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <AutoAwesomeRoundedIcon sx={{ fontSize: 16, color: '#fff' }} />
             </Box>
-            <Box sx={{
-              p: 2, borderRadius: '4px 16px 16px 16px',
-              backgroundColor: '#1E2330',
-              border: '1px solid rgba(255,255,255,0.06)',
-              display: 'flex', alignItems: 'center', gap: 1,
-            }}>
+
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: '4px 16px 16px 16px',
+                backgroundColor: '#1E2330',
+                border: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
               <CircularProgress size={14} sx={{ color: 'primary.main' }} />
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Analysing your finances...
+                Cardify AI is thinking...
               </Typography>
             </Box>
           </Box>
@@ -207,18 +262,22 @@ const AIAssistantPage: React.FC = () => {
           <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
             Try asking:
           </Typography>
+
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {SUGGESTED_PROMPTS.map((p) => (
+            {SUGGESTED_PROMPTS.map((prompt) => (
               <Chip
-                key={p}
-                label={p}
+                key={prompt}
+                label={prompt}
                 size="small"
                 clickable
-                onClick={() => sendMessage(p)}
+                onClick={() => sendMessage(prompt)}
                 sx={{
-                  fontSize: '0.72rem', height: 'auto', py: 0.5,
+                  fontSize: '0.72rem',
+                  height: 'auto',
+                  py: 0.5,
                   backgroundColor: alpha('#7C5CFC', 0.1),
-                  border: '1px solid', borderColor: alpha('#7C5CFC', 0.2),
+                  border: '1px solid',
+                  borderColor: alpha('#7C5CFC', 0.2),
                   color: 'text.primary',
                   '&:hover': { backgroundColor: alpha('#7C5CFC', 0.2) },
                 }}
@@ -228,11 +287,16 @@ const AIAssistantPage: React.FC = () => {
         </Box>
       )}
 
-      <Box sx={{
-        display: 'flex', gap: 1.5, p: 2,
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        backgroundColor: '#161A23', borderRadius: 3,
-      }}>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1.5,
+          p: 2,
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          backgroundColor: '#161A23',
+          borderRadius: 3,
+        }}
+      >
         <TextField
           fullWidth
           multiline
@@ -244,12 +308,16 @@ const AIAssistantPage: React.FC = () => {
           size="small"
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5, fontSize: '0.875rem' } }}
         />
+
         <IconButton
           onClick={() => sendMessage(input)}
           disabled={!input.trim() || isLoading}
           sx={{
             background: 'linear-gradient(135deg, #7C5CFC, #5A3DD8)',
-            borderRadius: 2, width: 44, height: 44, flexShrink: 0,
+            borderRadius: 2,
+            width: 44,
+            height: 44,
+            flexShrink: 0,
             '&:hover': { background: 'linear-gradient(135deg, #9B80FF, #7C5CFC)' },
             '&.Mui-disabled': { opacity: 0.4 },
           }}
