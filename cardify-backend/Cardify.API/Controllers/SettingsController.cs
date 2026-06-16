@@ -1,6 +1,7 @@
 using Cardify.Api.Data;
 using Cardify.Api.DTOs.Settings;
 using Cardify.Api.Models;
+using Cardify.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +15,12 @@ namespace Cardify.Api.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly AuthService _authService;
 
-    public SettingsController(ApplicationDbContext context)
+    public SettingsController(ApplicationDbContext context, AuthService authService)
     {
         _context = context;
+        _authService = authService;
     }
 
     [HttpGet]
@@ -93,6 +96,28 @@ public class SettingsController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(MapToResponse(user, settings));
+    }
+
+    [HttpPut("password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+        {
+            return BadRequest(new { message = "New password must be at least 6 characters." });
+        }
+
+        var result = await _authService.ChangePasswordAsync(
+            GetCurrentUserId(),
+            request.CurrentPassword,
+            request.NewPassword
+        );
+
+        return result switch
+        {
+            ChangePasswordResult.Success => Ok(new { message = "Password updated successfully." }),
+            ChangePasswordResult.IncorrectPassword => BadRequest(new { message = "Your current password is incorrect." }),
+            _ => NotFound()
+        };
     }
 
     private async Task<UserSettings> GetOrCreateSettingsAsync(Guid userId)

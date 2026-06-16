@@ -51,3 +51,10 @@ export const updatePreferences = async (
   });
   return response.data;
 };
+
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<void> => {
+  await api.put('/Settings/password', { currentPassword, newPassword });
+};

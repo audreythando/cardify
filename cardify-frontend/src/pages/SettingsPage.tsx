@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, TextField, Button, Avatar,
   Switch, Divider, alpha, Chip, CircularProgress, Snackbar, Alert,
+  Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
@@ -13,6 +14,7 @@ import {
   getSettings,
   updateProfile,
   updatePreferences,
+  changePassword,
   type NotificationSettings,
   type AiSettings,
 } from '../services/settingsService';
@@ -74,10 +76,11 @@ const SectionCard: React.FC<SectionCardProps> = ({ icon, title, iconColor, child
   </Box>
 );
 
-const ActionButton: React.FC<{ label: string }> = ({ label }) => (
+const ActionButton: React.FC<{ label: string; onClick?: () => void }> = ({ label, onClick }) => (
   <Button
     variant="outlined"
     size="small"
+    onClick={onClick}
     sx={{
       borderRadius: 2, fontSize: '0.72rem',
       borderColor: 'rgba(255,255,255,0.1)',
@@ -121,6 +124,14 @@ const SettingsPage: React.FC = () => {
     anomalyDetection: true,
     personalisation: true,
   });
+
+  // Change password dialog
+  const [pwOpen, setPwOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -181,6 +192,38 @@ const SettingsPage: React.FC = () => {
     const next = { ...aiSettings, [key]: !aiSettings[key] };
     setAiSettings(next);
     persistPreferences(notifications, next);
+  };
+
+  const closePwDialog = () => {
+    setPwOpen(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPwError('');
+  };
+
+  const handleChangePassword = async () => {
+    setPwError('');
+
+    if (newPassword.length < 6) {
+      setPwError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwError('New passwords do not match.');
+      return;
+    }
+
+    setPwSaving(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      closePwDialog();
+      setToast({ msg: 'Password updated.', severity: 'success' });
+    } catch {
+      setPwError('Could not change password. Check your current password and try again.');
+    } finally {
+      setPwSaving(false);
+    }
   };
 
   if (loading) {
@@ -411,7 +454,7 @@ const SettingsPage: React.FC = () => {
         <SettingRow
           label="Change Password"
           description="Update your account password"
-          control={<ActionButton label="Change" />}
+          control={<ActionButton label="Change" onClick={() => setPwOpen(true)} />}
         />
         <SettingRow
           label="Active Sessions"
@@ -492,6 +535,32 @@ const SettingsPage: React.FC = () => {
           </Button>
         </Box>
       </Box>
+
+      {/* ── Change Password Dialog ── */}
+      <Dialog open={pwOpen} onClose={closePwDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+          {pwError && <Alert severity="error">{pwError}</Alert>}
+          <TextField
+            label="Current Password" type="password" size="small" fullWidth
+            value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+          />
+          <TextField
+            label="New Password" type="password" size="small" fullWidth
+            value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <TextField
+            label="Confirm New Password" type="password" size="small" fullWidth
+            value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={closePwDialog} color="inherit">Cancel</Button>
+          <Button onClick={handleChangePassword} variant="contained" disabled={pwSaving}>
+            {pwSaving ? 'Saving…' : 'Update Password'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={!!toast}
