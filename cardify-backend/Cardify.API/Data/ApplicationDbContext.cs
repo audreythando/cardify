@@ -16,6 +16,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Budget> Budgets => Set<Budget>();
     public DbSet<AiInsight> AiInsights => Set<AiInsight>();
 
+    public DbSet<UserSettings> UserSettings => Set<UserSettings>();
+
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     base.OnModelCreating(modelBuilder);

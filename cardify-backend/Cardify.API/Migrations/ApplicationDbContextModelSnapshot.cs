@@ -186,12 +186,58 @@ namespace Cardify.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ProfileImageUrl")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Cardify.Api.Models.UserSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AiInsightsNotifications")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AnomalyDetection")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AutoInsights")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("BudgetWarnings")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Personalisation")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SpendingAlerts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SpendingPredictions")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("UnusualActivity")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("WeeklyReport")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserSettings");
                 });
 
             modelBuilder.Entity("Cardify.Api.Models.AiInsight", b =>
@@ -236,6 +282,17 @@ namespace Cardify.API.Migrations
                         .IsRequired();
 
                     b.Navigation("CreditCard");
+                });
+
+            modelBuilder.Entity("Cardify.Api.Models.UserSettings", b =>
+                {
+                    b.HasOne("Cardify.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Cardify.Api.Models.CreditCard", b =>

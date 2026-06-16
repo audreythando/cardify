@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, TextField, Button, Avatar,
-  Switch, Divider, alpha, Chip
+  Switch, Divider, alpha, Chip, CircularProgress, Snackbar, Alert,
 } from '@mui/material';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
@@ -9,22 +9,13 @@ import SecurityRoundedIcon from '@mui/icons-material/SecurityRounded';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
-import { mockUser } from '../utils/mockData';
-
-interface NotificationSettings {
-  spendingAlerts: boolean;
-  budgetWarnings: boolean;
-  aiInsights: boolean;
-  weeklyReport: boolean;
-  unusualActivity: boolean;
-}
-
-interface AISettings {
-  autoInsights: boolean;
-  spendingPredictions: boolean;
-  anomalyDetection: boolean;
-  personalisation: boolean;
-}
+import {
+  getSettings,
+  updateProfile,
+  updatePreferences,
+  type NotificationSettings,
+  type AiSettings,
+} from '../services/settingsService';
 
 interface SettingRowProps {
   label: string;
@@ -99,7 +90,23 @@ const ActionButton: React.FC<{ label: string }> = ({ label }) => (
   </Button>
 );
 
+const getInitials = (name: string) =>
+  name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'CU';
+
 const SettingsPage: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; severity: 'success' | 'error' } | null>(null);
+
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+
   const [notifications, setNotifications] = useState<NotificationSettings>({
     spendingAlerts: true,
     budgetWarnings: true,
@@ -108,36 +115,99 @@ const SettingsPage: React.FC = () => {
     unusualActivity: true,
   });
 
-  const [aiSettings, setAiSettings] = useState<AISettings>({
+  const [aiSettings, setAiSettings] = useState<AiSettings>({
     autoInsights: true,
     spendingPredictions: true,
     anomalyDetection: true,
     personalisation: true,
   });
 
-  const toggleNotification = (key: keyof NotificationSettings) => {
-    setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await getSettings();
+        setFullName(data.fullName);
+        setEmail(data.email);
+        setPhoneNumber(data.phoneNumber ?? '');
+        setNotifications(data.notifications);
+        setAiSettings(data.ai);
+      } catch {
+        setToast({ msg: 'Could not load settings.', severity: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const data = await updateProfile({
+        fullName,
+        email,
+        phoneNumber: phoneNumber.trim() === '' ? null : phoneNumber.trim(),
+      });
+      setFullName(data.fullName);
+      setEmail(data.email);
+      setPhoneNumber(data.phoneNumber ?? '');
+      setToast({ msg: 'Profile updated.', severity: 'success' });
+    } catch {
+      setToast({ msg: 'Could not save profile. The email may already be in use.', severity: 'error' });
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
-  const toggleAI = (key: keyof AISettings) => {
-    setAiSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  const persistPreferences = async (
+    nextNotifications: NotificationSettings,
+    nextAi: AiSettings
+  ) => {
+    try {
+      await updatePreferences(nextNotifications, nextAi);
+    } catch {
+      setToast({ msg: 'Could not save that setting.', severity: 'error' });
+    }
   };
+
+  const toggleNotification = (key: keyof NotificationSettings) => {
+    const next = { ...notifications, [key]: !notifications[key] };
+    setNotifications(next);
+    persistPreferences(next, aiSettings);
+  };
+
+  const toggleAI = (key: keyof AiSettings) => {
+    const next = { ...aiSettings, [key]: !aiSettings[key] };
+    setAiSettings(next);
+    persistPreferences(notifications, next);
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ maxWidth: 760 }}>
 
       <SectionCard icon={<PersonRoundedIcon />} title="Profile" iconColor="#7C5CFC">
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, mb: 3 }}>
-          <Avatar src={mockUser.avatarUrl} sx={{ width: 64, height: 64 }} />
+          <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main' }}>
+            {getInitials(fullName)}
+          </Avatar>
           <Box>
             <Typography variant="body1" sx={{ fontWeight: 700, mb: 0.3 }}>
-              {mockUser.name}
+              {fullName || 'Cardify User'}
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-              {mockUser.email}
+              {email}
             </Typography>
             <Chip
-            label={mockUser.plan === ('premium' as string) ? '⭐ Premium' : 'Free Plan'}
+              label="Free Plan"
               size="small"
               sx={{
                 height: 22, fontSize: '0.68rem', fontWeight: 700,
@@ -165,24 +235,42 @@ const SettingsPage: React.FC = () => {
               <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.8 }}>
                 Full Name
               </Typography>
-              <TextField fullWidth size="small" defaultValue={mockUser.name} />
+              <TextField
+                fullWidth size="small"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
             </Box>
             <Box sx={{ flex: 1, minWidth: 200 }}>
               <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.8 }}>
                 Email Address
               </Typography>
-              <TextField fullWidth size="small" defaultValue={mockUser.email} />
+              <TextField
+                fullWidth size="small"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </Box>
           </Box>
           <Box>
             <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.8 }}>
               Phone Number
             </Typography>
-            <TextField fullWidth size="small" placeholder="+27 XX XXX XXXX" />
+            <TextField
+              fullWidth size="small"
+              placeholder="+27 XX XXX XXXX"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+            />
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button variant="contained" size="small" sx={{ borderRadius: 2 }}>
-              Save Changes
+            <Button
+              variant="contained" size="small"
+              sx={{ borderRadius: 2 }}
+              disabled={savingProfile}
+              onClick={handleSaveProfile}
+            >
+              {savingProfile ? 'Saving…' : 'Save Changes'}
             </Button>
           </Box>
         </Box>
@@ -263,9 +351,8 @@ const SettingsPage: React.FC = () => {
           border: '1px solid', borderColor: alpha('#00D4AA', 0.12),
         }}>
           <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
-            🤖 Powered by <strong>Azure OpenAI (GPT-4o)</strong> — these settings control
-            how your AI assistant analyses your financial data. Relevant to{' '}
-            <strong>AI-102</strong> responsible AI principles.
+            🤖 Powered by <strong>Ollama</strong> running locally — these settings control
+            how your AI assistant analyses your financial data.
           </Typography>
         </Box>
         <SettingRow
@@ -292,7 +379,7 @@ const SettingsPage: React.FC = () => {
         />
         <SettingRow
           label="Anomaly Detection"
-          description="Azure AI flags unusual transactions in real time"
+          description="AI flags unusual transactions in real time"
           control={
             <Switch
               checked={aiSettings.anomalyDetection}
@@ -405,6 +492,19 @@ const SettingsPage: React.FC = () => {
           </Button>
         </Box>
       </Box>
+
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={3000}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        {toast ? (
+          <Alert severity={toast.severity} onClose={() => setToast(null)}>
+            {toast.msg}
+          </Alert>
+        ) : undefined}
+      </Snackbar>
     </Box>
   );
 };
