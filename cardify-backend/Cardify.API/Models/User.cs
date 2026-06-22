@@ -22,5 +22,7 @@ public class User
 
 public string PasswordSalt { get; set; } = string.Empty;
 
+public string? AvatarUrl { get; set; }
+
 public string? PhoneNumber { get; set; }
 }
