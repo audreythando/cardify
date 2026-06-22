@@ -19,6 +19,7 @@ export interface SettingsResponse {
   fullName: string;
   email: string;
   phoneNumber: string | null;
+  avatarUrl: string | null;   
   notifications: NotificationSettings;
   ai: AiSettings;
 }
@@ -57,4 +58,9 @@ export const changePassword = async (
   newPassword: string
 ): Promise<void> => {
   await api.put('/Settings/password', { currentPassword, newPassword });
+};
+
+export const updateAvatar = async (avatarUrl: string): Promise<string | null> => {
+  const response = await api.put<{ avatarUrl: string | null }>('/Settings/avatar', { avatarUrl });
+  return response.data.avatarUrl;
 };

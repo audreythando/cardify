@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Drawer,
@@ -45,6 +45,7 @@ interface SidebarProps {
 interface StoredUser {
   fullName?: string;
   email?: string;
+  avatarUrl?: string | null;
 }
 
 const getStoredUser = (): StoredUser => {
@@ -79,12 +80,19 @@ const getInitials = (name?: string) => {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) => {
-  const user = getStoredUser();
+  const [user, setUser] = useState<StoredUser>(getStoredUser);
 
-const handleLogout = () => {
-  logout();
-  onLogout();
-};
+  // Refresh when the photo/profile changes elsewhere (Settings page, login).
+  useEffect(() => {
+    const refresh = () => setUser(getStoredUser());
+    window.addEventListener('cardify-user-updated', refresh);
+    return () => window.removeEventListener('cardify-user-updated', refresh);
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    onLogout();
+  };
 
   return (
     <Drawer
@@ -236,7 +244,10 @@ const handleLogout = () => {
             backgroundColor: alpha('#fff', 0.02),
           }}
         >
-          <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
+          <Avatar
+            src={user.avatarUrl ?? undefined}
+            sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}
+          >
             {getInitials(user.fullName)}
           </Avatar>
 

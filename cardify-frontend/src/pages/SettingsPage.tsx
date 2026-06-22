@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Box, Typography, TextField, Button, Avatar,
   Switch, Divider, alpha, Chip, CircularProgress, Snackbar, Alert,
@@ -15,6 +15,7 @@ import {
   updateProfile,
   updatePreferences,
   changePassword,
+  updateAvatar,
   type NotificationSettings,
   type AiSettings,
 } from '../services/settingsService';
@@ -110,6 +111,9 @@ const SettingsPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [notifications, setNotifications] = useState<NotificationSettings>({
     spendingAlerts: true,
     budgetWarnings: true,
@@ -140,6 +144,7 @@ const SettingsPage: React.FC = () => {
         setFullName(data.fullName);
         setEmail(data.email);
         setPhoneNumber(data.phoneNumber ?? '');
+        setAvatarUrl(data.avatarUrl ?? null);
         setNotifications(data.notifications);
         setAiSettings(data.ai);
       } catch {
@@ -226,6 +231,41 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1024 * 1024) {
+      setToast({ msg: 'Please choose an image under 1MB.', severity: 'error' });
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      try {
+        const saved = await updateAvatar(base64);
+        const finalUrl = saved ?? base64;
+        setAvatarUrl(finalUrl);
+
+        // Keep the cached user in sync so the sidebar can read it.
+        const raw = localStorage.getItem('cardify_user');
+        const cached = raw ? JSON.parse(raw) : {};
+        localStorage.setItem('cardify_user', JSON.stringify({ ...cached, avatarUrl: finalUrl }));
+        window.dispatchEvent(new Event('cardify-user-updated'));
+
+        setToast({ msg: 'Photo updated.', severity: 'success' });
+      } catch {
+        setToast({ msg: 'Could not upload photo.', severity: 'error' });
+      }
+    };
+    reader.readAsDataURL(file);
+
+    // Reset so selecting the same file again still fires onChange.
+    e.target.value = '';
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
@@ -239,7 +279,10 @@ const SettingsPage: React.FC = () => {
 
       <SectionCard icon={<PersonRoundedIcon />} title="Profile" iconColor="#7C5CFC">
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, mb: 3 }}>
-          <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main' }}>
+          <Avatar
+            src={avatarUrl ?? undefined}
+            sx={{ width: 64, height: 64, bgcolor: 'primary.main' }}
+          >
             {getInitials(fullName)}
           </Avatar>
           <Box>
@@ -261,6 +304,7 @@ const SettingsPage: React.FC = () => {
           </Box>
           <Button
             variant="outlined" size="small"
+            onClick={() => fileInputRef.current?.click()}
             sx={{
               ml: 'auto', borderRadius: 2,
               borderColor: 'rgba(255,255,255,0.1)',
@@ -270,6 +314,13 @@ const SettingsPage: React.FC = () => {
           >
             Change Photo
           </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={handlePhotoSelected}
+          />
         </Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
