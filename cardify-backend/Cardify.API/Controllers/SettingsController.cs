@@ -120,6 +120,28 @@ public class SettingsController : ControllerBase
         };
     }
 
+    [HttpPut("avatar")]
+    public async Task<IActionResult> UpdateAvatar(UpdateAvatarRequest request)
+    {
+        var userId = GetCurrentUserId();
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        if (request.AvatarUrl is not null && request.AvatarUrl.Length > 1_500_000)
+        {
+            return BadRequest(new { message = "Image is too large. Please use an image under 1MB." });
+        }
+
+        user.AvatarUrl = request.AvatarUrl;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { avatarUrl = user.AvatarUrl });
+    }
+
     private async Task<UserSettings> GetOrCreateSettingsAsync(Guid userId)
     {
         var settings = await _context.UserSettings
@@ -140,6 +162,7 @@ public class SettingsController : ControllerBase
         FullName = user.FullName,
         Email = user.Email,
         PhoneNumber = user.PhoneNumber,
+        AvatarUrl = user.AvatarUrl,
         Notifications = new NotificationSettingsDto
         {
             SpendingAlerts = settings.SpendingAlerts,

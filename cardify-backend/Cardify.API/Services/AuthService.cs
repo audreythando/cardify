@@ -50,6 +50,7 @@ public class AuthService
             UserId = user.Id,
             FullName = user.FullName,
             Email = user.Email,
+            AvatarUrl = user.AvatarUrl,
             Token = CreateToken(user)
         };
     }
@@ -80,6 +81,7 @@ public class AuthService
             UserId = user.Id,
             FullName = user.FullName,
             Email = user.Email,
+            AvatarUrl = user.AvatarUrl,
             Token = CreateToken(user)
         };
     }

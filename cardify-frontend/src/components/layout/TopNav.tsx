@@ -1,38 +1,32 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Typography, IconButton, Avatar, Badge, alpha } from '@mui/material';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
-import { mockUser } from '../../utils/mockData';
 
-const pageTitles: Record<string, { title: string; subtitle: string }> = {
-  dashboard: {
-    title: `Welcome back, ${mockUser.name.split(' ')[0]} 👋`,
-    subtitle: "Here's what's happening with your cards today.",
-  },
-  cards: {
-    title: 'My Cards',
-    subtitle: 'Manage your credit cards and track balances.',
-  },
-  transactions: {
-    title: 'Transactions',
-    subtitle: 'View and search your recent activity.',
-  },
-  analytics: {
-    title: 'Analytics',
-    subtitle: 'Insights into your spending behaviour.',
-  },
-  budgets: {
-    title: 'Budgets',
-    subtitle: 'Set and track your monthly spending limits.',
-  },
-  'ai-assistant': {
-    title: 'AI Assistant',
-    subtitle: 'Your personal AI-powered financial advisor.',
-  },
-  settings: {
-    title: 'Settings',
-    subtitle: 'Manage your account and preferences.',
-  },
+interface StoredUser {
+  fullName?: string;
+  email?: string;
+  avatarUrl?: string | null;
+}
+
+const getStoredUser = (): StoredUser => {
+  const raw = localStorage.getItem('cardify_user');
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as StoredUser;
+  } catch {
+    return {};
+  }
+};
+
+const getInitials = (name?: string) => {
+  if (!name) return 'CU';
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 };
 
 interface TopNavProps {
@@ -40,6 +34,48 @@ interface TopNavProps {
 }
 
 const TopNav: React.FC<TopNavProps> = ({ activePage }) => {
+  const [user, setUser] = useState<StoredUser>(getStoredUser);
+
+  // Refresh when the photo/profile changes elsewhere (e.g. Settings page).
+  useEffect(() => {
+    const refresh = () => setUser(getStoredUser());
+    window.addEventListener('cardify-user-updated', refresh);
+    return () => window.removeEventListener('cardify-user-updated', refresh);
+  }, []);
+
+  const firstName = user.fullName?.split(' ')[0] || 'there';
+
+  const pageTitles: Record<string, { title: string; subtitle: string }> = {
+    dashboard: {
+      title: `Welcome back, ${firstName} 👋`,
+      subtitle: "Here's what's happening with your cards today.",
+    },
+    cards: {
+      title: 'My Cards',
+      subtitle: 'Manage your credit cards and track balances.',
+    },
+    transactions: {
+      title: 'Transactions',
+      subtitle: 'View and search your recent activity.',
+    },
+    analytics: {
+      title: 'Analytics',
+      subtitle: 'Insights into your spending behaviour.',
+    },
+    budgets: {
+      title: 'Budgets',
+      subtitle: 'Set and track your monthly spending limits.',
+    },
+    'ai-assistant': {
+      title: 'AI Assistant',
+      subtitle: 'Your personal AI-powered financial advisor.',
+    },
+    settings: {
+      title: 'Settings',
+      subtitle: 'Manage your account and preferences.',
+    },
+  };
+
   const page = pageTitles[activePage] || pageTitles.dashboard;
 
   return (
@@ -55,7 +91,7 @@ const TopNav: React.FC<TopNavProps> = ({ activePage }) => {
       top: 0,
       zIndex: 100,
     }}>
-      {/* Page Title */}
+
       <Box>
         <Typography variant="h5" sx={{ fontWeight: 700, fontSize: '1.3rem' }}>
           {page.title}
@@ -65,7 +101,6 @@ const TopNav: React.FC<TopNavProps> = ({ activePage }) => {
         </Typography>
       </Box>
 
-      {/* Actions */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <IconButton sx={{
           backgroundColor: alpha('#fff', 0.05),
@@ -90,9 +125,11 @@ const TopNav: React.FC<TopNavProps> = ({ activePage }) => {
         </IconButton>
 
         <Avatar
-          src={mockUser.avatarUrl}
-          sx={{ width: 36, height: 36, cursor: 'pointer', ml: 1 }}
-        />
+          src={user.avatarUrl ?? undefined}
+          sx={{ width: 36, height: 36, cursor: 'pointer', ml: 1, bgcolor: 'primary.main' }}
+        >
+          {getInitials(user.fullName)}
+        </Avatar>
       </Box>
     </Box>
   );
