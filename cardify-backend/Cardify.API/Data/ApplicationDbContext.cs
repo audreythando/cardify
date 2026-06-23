@@ -18,6 +18,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<UserSettings> UserSettings => Set<UserSettings>();
 
+    public DbSet<Notification> Notifications => Set<Notification>();
+
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     base.OnModelCreating(modelBuilder);
