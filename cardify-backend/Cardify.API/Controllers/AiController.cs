@@ -14,19 +14,19 @@ namespace Cardify.Api.Controllers;
 [Authorize]
 public class AiController : ControllerBase
 {
-    private readonly OllamaService _ollamaService;
+    private readonly IAiService _aiService;
     private readonly ApplicationDbContext _context;
 
-    public AiController(OllamaService ollamaService, ApplicationDbContext context)
+    public AiController(IAiService aiService, ApplicationDbContext context)
     {
-        _ollamaService = ollamaService;
+        _aiService = aiService;
         _context = context;
     }
 
     [HttpPost("financial-insight")]
     public async Task<IActionResult> GenerateFinancialInsight(AiFinancialInsightRequest request)
     {
-        var insight = await _ollamaService.GenerateFinancialInsightAsync(request.Prompt);
+        var insight = await _aiService.GenerateFinancialInsightAsync(request.Prompt);
 
         return Ok(new { insight });
     }
@@ -81,7 +81,7 @@ public class AiController : ControllerBase
             utilisation
         );
 
-        var insight = await _ollamaService.GenerateCardifyAdviceAsync(
+        var insight = await _aiService.GenerateCardifyAdviceAsync(
             financialContext,
             request.Question
         );
@@ -152,7 +152,7 @@ public class AiController : ControllerBase
         return builder.ToString();
     }
 
-    private Guid GetCurrentUserId()
+    private Guid GetCurrentUserId() 
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.Parse(userId!);

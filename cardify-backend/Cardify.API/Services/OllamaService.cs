@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Cardify.Api.Services;
 
-public class OllamaService
+public class OllamaService : IAiService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
@@ -83,7 +83,6 @@ public class OllamaService
         }
     }
 
-    // Fire-and-forget on startup to load the model into memory before the first real request.
     public async Task WarmUpAsync()
     {
         var model = _configuration["Ollama:Model"] ?? "phi3";
@@ -109,7 +108,7 @@ public class OllamaService
         }
         catch
         {
-       
+
         }
     }
 }

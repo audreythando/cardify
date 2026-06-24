@@ -32,7 +32,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddHttpClient<OllamaService>();
+
+var aiProvider = builder.Configuration["Ai:Provider"] ?? "Ollama";
+
+if (aiProvider.Equals("Groq", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddHttpClient<IAiService, GroqService>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(60);
+    });
+}
+else
+{
+    builder.Services.AddHttpClient<IAiService, OllamaService>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(120);
+    });
+}
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
