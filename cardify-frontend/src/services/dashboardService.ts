@@ -67,3 +67,17 @@ export const getAiInsights = async (): Promise<AiInsight[]> => {
   const response = await api.get<AiInsight[]>('/Dashboard/ai-insights');
   return response.data;
 };
+
+export interface CreateCardPayload {
+  cardHolderName: string;
+  cardNumber: string;
+  cardType: string;
+  balance: number;
+  creditLimit: number;
+  expiryDate: string;
+}
+
+export const createCard = async (payload: CreateCardPayload): Promise<Card> => {
+  const response = await api.post<Card>('/Cards', payload);
+  return response.data;
+};

@@ -44,67 +44,32 @@ public class CardsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-public async Task<IActionResult> GetCardById(Guid id)
-{
-    var userId = GetCurrentUserId();
+    public async Task<IActionResult> GetCardById(Guid id)
+    {
+        var userId = GetCurrentUserId();
 
-    var card = await _context.CreditCards
-        .Where(card => card.Id == id && card.UserId == userId)
-        .Select(card => new CardResponse
+        var card = await _context.CreditCards
+            .Where(card => card.Id == id && card.UserId == userId)
+            .Select(card => new CardResponse
+            {
+                Id = card.Id,
+                CardHolderName = card.CardHolderName,
+                CardNumber = card.CardNumber,
+                CardType = card.CardType,
+                Balance = card.Balance,
+                CreditLimit = card.CreditLimit,
+                ExpiryDate = card.ExpiryDate,
+                IsActive = card.IsActive
+            })
+            .FirstOrDefaultAsync();
+
+        if (card is null)
         {
-            Id = card.Id,
-            CardHolderName = card.CardHolderName,
-            CardNumber = card.CardNumber,
-            CardType = card.CardType,
-            Balance = card.Balance,
-            CreditLimit = card.CreditLimit,
-            ExpiryDate = card.ExpiryDate,
-            IsActive = card.IsActive
-        })
-        .FirstOrDefaultAsync();
+            return NotFound("Card not found.");
+        }
 
-    if (card is null)
-    {
-        return NotFound("Card not found.");
+        return Ok(card);
     }
-
-    return Ok(card);
-}
-
-[HttpPut("{id}")]
-public async Task<IActionResult> UpdateCard(Guid id, UpdateCardRequest request)
-{
-    var userId = GetCurrentUserId();
-
-    var card = await _context.CreditCards
-        .FirstOrDefaultAsync(card => card.Id == id && card.UserId == userId);
-
-    if (card is null)
-    {
-        return NotFound("Card not found.");
-    }
-
-    card.CardHolderName = request.CardHolderName;
-    card.CardType = request.CardType;
-    card.Balance = request.Balance;
-    card.CreditLimit = request.CreditLimit;
-    card.ExpiryDate = request.ExpiryDate;
-    card.IsActive = request.IsActive;
-
-    await _context.SaveChangesAsync();
-
-    return Ok(new CardResponse
-    {
-        Id = card.Id,
-        CardHolderName = card.CardHolderName,
-        CardNumber = card.CardNumber,
-        CardType = card.CardType,
-        Balance = card.Balance,
-        CreditLimit = card.CreditLimit,
-        ExpiryDate = card.ExpiryDate,
-        IsActive = card.IsActive
-    });
-}
 
     [HttpPost]
     public async Task<IActionResult> CreateCard(CreateCardRequest request)
@@ -118,7 +83,8 @@ public async Task<IActionResult> UpdateCard(Guid id, UpdateCardRequest request)
             CardType = request.CardType,
             Balance = request.Balance,
             CreditLimit = request.CreditLimit,
-            ExpiryDate = request.ExpiryDate,
+            ExpiryDate = DateTime.SpecifyKind(request.ExpiryDate, DateTimeKind.Utc),
+            IsActive = true,
             UserId = userId
         };
 
@@ -138,24 +104,59 @@ public async Task<IActionResult> UpdateCard(Guid id, UpdateCardRequest request)
         });
     }
 
-    [HttpDelete("{id}")]
-public async Task<IActionResult> DeleteCard(Guid id)
-{
-    var userId = GetCurrentUserId();
-
-    var card = await _context.CreditCards
-        .FirstOrDefaultAsync(card => card.Id == id && card.UserId == userId);
-
-    if (card is null)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateCard(Guid id, UpdateCardRequest request)
     {
-        return NotFound("Card not found.");
+        var userId = GetCurrentUserId();
+
+        var card = await _context.CreditCards
+            .FirstOrDefaultAsync(card => card.Id == id && card.UserId == userId);
+
+        if (card is null)
+        {
+            return NotFound("Card not found.");
+        }
+
+        card.CardHolderName = request.CardHolderName;
+        card.CardType = request.CardType;
+        card.Balance = request.Balance;
+        card.CreditLimit = request.CreditLimit;
+        card.ExpiryDate = DateTime.SpecifyKind(request.ExpiryDate, DateTimeKind.Utc);
+        card.IsActive = request.IsActive;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new CardResponse
+        {
+            Id = card.Id,
+            CardHolderName = card.CardHolderName,
+            CardNumber = card.CardNumber,
+            CardType = card.CardType,
+            Balance = card.Balance,
+            CreditLimit = card.CreditLimit,
+            ExpiryDate = card.ExpiryDate,
+            IsActive = card.IsActive
+        });
     }
 
-    _context.CreditCards.Remove(card);
-    await _context.SaveChangesAsync();
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteCard(Guid id)
+    {
+        var userId = GetCurrentUserId();
 
-    return NoContent();
-}
+        var card = await _context.CreditCards
+            .FirstOrDefaultAsync(card => card.Id == id && card.UserId == userId);
+
+        if (card is null)
+        {
+            return NotFound("Card not found.");
+        }
+
+        _context.CreditCards.Remove(card);
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
 
     private Guid GetCurrentUserId()
     {

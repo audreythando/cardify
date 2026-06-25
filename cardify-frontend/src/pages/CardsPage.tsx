@@ -9,6 +9,12 @@ import {
   Grid,
   CircularProgress,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
 } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
@@ -19,6 +25,7 @@ import { formatZAR } from '../utils/format';
 import {
   getCards,
   getTransactions,
+  createCard,
   type Card,
   type Transaction,
 } from '../services/dashboardService';
@@ -157,8 +164,8 @@ const CardDetailPanel: React.FC<CardDetailPanelProps> = ({ card, transactions })
           {utilisation > 75
             ? '⚠️ High utilisation — aim to pay this down soon'
             : utilisation > 50
-            ? '⚡ Getting high — try to keep below 30% for a healthy score'
-            : '✅ Great! Keeping utilisation low helps your credit score'}
+              ? '⚡ Getting high — try to keep below 30% for a healthy score'
+              : '✅ Great! Keeping utilisation low helps your credit score'}
         </Typography>
       </Box>
 
@@ -274,6 +281,66 @@ const CardsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [addOpen, setAddOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [form, setForm] = useState({
+    cardHolderName: '',
+    cardType: 'visa',
+    creditLimit: '',
+    expiryDate: '',
+  });
+
+  const resetForm = () => {
+    setForm({ cardHolderName: '', cardType: 'visa', creditLimit: '', expiryDate: '' });
+    setFormError('');
+  };
+
+  const closeAddDialog = () => {
+    setAddOpen(false);
+    resetForm();
+  };
+
+  const generateCardNumber = () =>
+    Array.from({ length: 16 }, () => Math.floor(Math.random() * 10)).join('');
+
+  const handleCreateCard = async () => {
+    setFormError('');
+
+    if (!form.cardHolderName.trim()) {
+      setFormError('Cardholder name is required.');
+      return;
+    }
+    const limit = parseFloat(form.creditLimit);
+    if (isNaN(limit) || limit <= 0) {
+      setFormError('Enter a valid credit limit.');
+      return;
+    }
+    if (!form.expiryDate) {
+      setFormError('Select an expiry date.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await createCard({
+        cardHolderName: form.cardHolderName.trim(),
+        cardNumber: generateCardNumber(),
+        cardType: form.cardType,
+        balance: 0, // starts at 0; grows via transactions
+        creditLimit: limit,
+        expiryDate: new Date(form.expiryDate + '-01').toISOString(),
+      });
+
+      closeAddDialog();
+      await loadCardsPage();
+    } catch {
+      setFormError('Could not add card. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const loadCardsPage = async () => {
     try {
       const [cardsData, transactionsData] = await Promise.all([
@@ -287,7 +354,9 @@ const CardsPage: React.FC = () => {
 
       setCards(mappedCards);
       setTransactions(transactionsData);
-      setSelectedCard(mappedCards[0] ?? null);
+      setSelectedCard((prev) =>
+        prev ? mappedCards.find((c) => c.id === prev.id) ?? mappedCards[0] ?? null : mappedCards[0] ?? null
+      );
     } catch {
       setError('Could not load cards.');
     } finally {
@@ -302,6 +371,68 @@ const CardsPage: React.FC = () => {
   const totalCardsText = useMemo(() => {
     return `${cards.length} card${cards.length === 1 ? '' : 's'} linked`;
   }, [cards.length]);
+
+
+  const addCardDialog = (
+    <Dialog open={addOpen} onClose={closeAddDialog} maxWidth="xs" fullWidth>
+      <DialogTitle>Add New Card</DialogTitle>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+        {formError && <Alert severity="error">{formError}</Alert>}
+
+        <TextField
+          label="Cardholder Name"
+          size="small"
+          fullWidth
+          value={form.cardHolderName}
+          onChange={(e) => setForm({ ...form, cardHolderName: e.target.value })}
+        />
+
+        <TextField
+          label="Card Type"
+          size="small"
+          fullWidth
+          select
+          value={form.cardType}
+          onChange={(e) => setForm({ ...form, cardType: e.target.value })}
+        >
+          <MenuItem value="visa">Visa</MenuItem>
+          <MenuItem value="mastercard">Mastercard</MenuItem>
+          <MenuItem value="amex">Amex</MenuItem>
+        </TextField>
+
+        <TextField
+          label="Credit Limit (R)"
+          size="small"
+          fullWidth
+          type="number"
+          value={form.creditLimit}
+          onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
+        />
+
+        <TextField
+          label="Expiry"
+          size="small"
+          fullWidth
+          type="month"
+          slotProps={{ inputLabel: { shrink: true } }}
+          value={form.expiryDate}
+          onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
+        />
+
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          Balance starts at R0 and grows as you add transactions to this card.
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={closeAddDialog} color="inherit">
+          Cancel
+        </Button>
+        <Button onClick={handleCreateCard} variant="contained" disabled={saving}>
+          {saving ? 'Adding…' : 'Add Card'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 
   if (loading) {
     return (
@@ -328,7 +459,12 @@ const CardsPage: React.FC = () => {
             </Typography>
           </Box>
 
-          <Button variant="contained" startIcon={<AddRoundedIcon />} sx={{ borderRadius: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={<AddRoundedIcon />}
+            onClick={() => setAddOpen(true)}
+            sx={{ borderRadius: 2 }}
+          >
             Add New Card
           </Button>
         </Box>
@@ -347,6 +483,8 @@ const CardsPage: React.FC = () => {
             No cards found.
           </Typography>
         </Box>
+
+        {addCardDialog}
       </Box>
     );
   }
@@ -363,7 +501,12 @@ const CardsPage: React.FC = () => {
           </Typography>
         </Box>
 
-        <Button variant="contained" startIcon={<AddRoundedIcon />} sx={{ borderRadius: 2 }}>
+        <Button
+          variant="contained"
+          startIcon={<AddRoundedIcon />}
+          onClick={() => setAddOpen(true)}
+          sx={{ borderRadius: 2 }}
+        >
           Add New Card
         </Button>
       </Box>
@@ -439,6 +582,7 @@ const CardsPage: React.FC = () => {
             ))}
 
             <Box
+              onClick={() => setAddOpen(true)}
               sx={{
                 p: 3,
                 borderRadius: 3,
@@ -483,6 +627,8 @@ const CardsPage: React.FC = () => {
           <CardDetailPanel card={selectedCard} transactions={transactions} />
         </Grid>
       </Grid>
+
+      {addCardDialog}
     </Box>
   );
 };
