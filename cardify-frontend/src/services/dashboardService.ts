@@ -81,3 +81,17 @@ export const createCard = async (payload: CreateCardPayload): Promise<Card> => {
   const response = await api.post<Card>('/Cards', payload);
   return response.data;
 };
+
+export interface CreateTransactionPayload {
+  creditCardId: string;
+  merchantName: string;
+  category: string;
+  amount: number;
+}
+
+export const createTransaction = async (
+  payload: CreateTransactionPayload
+): Promise<Transaction> => {
+  const response = await api.post<Transaction>('/Transactions', payload);
+  return response.data;
+};
