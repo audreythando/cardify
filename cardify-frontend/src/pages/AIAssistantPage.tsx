@@ -12,7 +12,7 @@ import {
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import type { ChatMessage } from '../types';
-import { generateFinancialInsight } from '../services/aiService';
+import { generateCardifyAdvice } from '../services/aiService';
 
 const SUGGESTED_PROMPTS = [
   'How can I reduce my spending this month?',
@@ -99,7 +99,7 @@ Ask me things like:
     setIsLoading(true);
 
     try {
-      const replyText = await generateFinancialInsight(text);
+     const replyText = await generateCardifyAdvice(text);
 
       setMessages((prev) => [
         ...prev,

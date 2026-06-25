@@ -18,3 +18,11 @@ export const generateFinancialInsight = async (
 
   return response.data.insight;
 };
+
+export const generateCardifyAdvice = async (question: string): Promise<string> => {
+  const response = await api.post<{ insight: string }>('/Ai/cardify-advice', {
+    question,
+  });
+
+  return response.data.insight;
+};
