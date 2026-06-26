@@ -1,13 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Box, Typography, alpha, ToggleButton, ToggleButtonGroup
+  Box, Typography, alpha, CircularProgress, Alert,
 } from '@mui/material';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid, Legend, PieChart, Pie, Cell
+  CartesianGrid, Legend, PieChart, Pie, Cell,
 } from 'recharts';
-import { mockSpendingOverview, mockTransactions } from '../utils/mockData';
 import { formatZAR } from '../utils/format';
+import { getTransactions, type Transaction } from '../services/dashboardService';
+import { getBudgets, type Budget } from '../services/budgetsService';
+
+const PALETTE = ['#7C5CFC', '#FF5A7E', '#FFB547', '#00D4AA', '#38BDF8', '#A78BFA', '#34D399', '#6B7280'];
+
+const categoryEmojis: Record<string, string> = {
+  Shopping: '🛍️',
+  Groceries: '🛒',
+  Entertainment: '🎬',
+  Fuel: '⛽',
+  Transportation: '🚗',
+  'Food & Dining': '🍔',
+  Healthcare: '💊',
+  'Bills & Utilities': '💡',
+  Travel: '✈️',
+  Other: '💳',
+};
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -31,279 +49,289 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+const ChartCard: React.FC<{ title: string; subtitle: string; flex?: number; children: React.ReactNode }> = ({
+  title, subtitle, flex = 1, children,
+}) => (
+  <Box sx={{
+    flex, minWidth: 280, p: 3, borderRadius: 3,
+    background: '#161A23',
+    border: '1px solid rgba(255,255,255,0.06)',
+  }}>
+    <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', mb: 0.5 }}>
+      {title}
+    </Typography>
+    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 3 }}>
+      {subtitle}
+    </Typography>
+    {children}
+  </Box>
+);
+
 const AnalyticsPage: React.FC = () => {
-  const [period, setPeriod] = useState('monthly');
-  const { categories, monthlyTrend } = mockSpendingOverview;
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const dayPattern = [
-    { day: 'Mon', amount: 1240 },
-    { day: 'Tue', amount: 890 },
-    { day: 'Wed', amount: 2100 },
-    { day: 'Thu', amount: 1560 },
-    { day: 'Fri', amount: 3200 },
-    { day: 'Sat', amount: 4100 },
-    { day: 'Sun', amount: 980 },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [txns, buds] = await Promise.all([getTransactions(), getBudgets()]);
+        setTransactions(txns);
+        setBudgets(buds);
+      } catch {
+        setError('Could not load analytics.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-  const topMerchants = mockTransactions
-    .filter(t => t.amount < 0)
-    .reduce((acc, t) => {
-      acc[t.merchantName] = (acc[t.merchantName] || 0) + Math.abs(t.amount);
+  const budgetVsSpent = useMemo(
+    () => budgets.map((b) => ({
+      category: b.category,
+      Spent: b.currentSpent,
+      Limit: b.limitAmount,
+    })),
+    [budgets]
+  );
+
+  const byCategory = useMemo(() => {
+    const totals = transactions.reduce((acc, t) => {
+      acc[t.category] = (acc[t.category] || 0) + t.amount;
       return acc;
     }, {} as Record<string, number>);
 
-  const merchantList = Object.entries(topMerchants)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+    const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0);
 
-  const totalMerchantSpend = merchantList.reduce((s, [, v]) => s + v, 0);
+    return Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, amount], i) => ({
+        category,
+        amount,
+        percentage: grandTotal === 0 ? 0 : Math.round((amount / grandTotal) * 100),
+        color: PALETTE[i % PALETTE.length],
+      }));
+  }, [transactions]);
 
-  const colors = ['#7C5CFC', '#FF5A7E', '#FFB547', '#00D4AA', '#38BDF8'];
+  const spendByDay = useMemo(() => {
+    const totals: Record<string, number> = Object.fromEntries(WEEKDAYS.map((d) => [d, 0]));
+    transactions.forEach((t) => {
+      const jsDay = new Date(t.transactionDate).getDay(); // 0=Sun..6=Sat
+      const label = WEEKDAYS[(jsDay + 6) % 7]; // shift so Mon=0
+      totals[label] += t.amount;
+    });
+    return WEEKDAYS.map((day) => ({ day, amount: totals[day] }));
+  }, [transactions]);
+
+  const topMerchants = useMemo(() => {
+    const totals = transactions.reduce((acc, t) => {
+      acc[t.merchantName] = (acc[t.merchantName] || 0) + t.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const list = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const total = list.reduce((s, [, v]) => s + v, 0);
+    return { list, total };
+  }, [transactions]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return <Alert severity="error">{error}</Alert>;
+  }
+
+  if (transactions.length === 0 && budgets.length === 0) {
+    return (
+      <Box sx={{
+        p: 6, borderRadius: 3, textAlign: 'center',
+        background: '#161A23', border: '1px solid rgba(255,255,255,0.06)',
+      }}>
+        <Typography sx={{ fontSize: '2rem', mb: 1 }}>📊</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          No analytics yet. Add some transactions and budgets to see your spending insights.
+        </Typography>
+      </Box>
+    );
+  }
+
+  const maxDay = Math.max(...spendByDay.map((d) => d.amount), 1);
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
-        <ToggleButtonGroup
-          value={period}
-          exclusive
-          onChange={(_, v) => v && setPeriod(v)}
-          size="small"
-          sx={{
-            '& .MuiToggleButton-root': {
-              borderColor: 'rgba(255,255,255,0.1)',
-              color: 'text.secondary',
-              fontSize: '0.75rem',
-              px: 2,
-              '&.Mui-selected': {
-                backgroundColor: alpha('#7C5CFC', 0.2),
-                color: 'primary.main',
-                borderColor: alpha('#7C5CFC', 0.3),
-              },
-            },
-          }}
+      <Box sx={{ display: 'flex', gap: 3, mb: 3, flexWrap: 'wrap' }}>
+        <ChartCard
+          title="Budget vs Spent"
+          subtitle="How much you've spent against each budget"
+          flex={2}
         >
-          <ToggleButton value="weekly">Weekly</ToggleButton>
-          <ToggleButton value="monthly">Monthly</ToggleButton>
-          <ToggleButton value="yearly">Yearly</ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
-      <Box sx={{ display: 'flex', gap: 3, mb: 3, flexWrap: 'wrap' }}>
+          {budgetVsSpent.length === 0 ? (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Set a budget to compare your spending against it.
+            </Typography>
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={budgetVsSpent} barGap={4}>
+                <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="category" axisLine={false} tickLine={false} tick={{ fill: '#8892A4', fontSize: 12 }} />
+                <YAxis
+                  axisLine={false} tickLine={false}
+                  tick={{ fill: '#8892A4', fontSize: 11 }}
+                  tickFormatter={(v) => `R${(v / 1000).toFixed(0)}k`}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '16px' }} />
+                <Bar dataKey="Spent" fill="#7C5CFC" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Limit" fill="rgba(255,255,255,0.08)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
 
-        <Box sx={{
-          flex: 2, minWidth: 280, p: 3, borderRadius: 3,
-          background: '#161A23',
-          border: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', mb: 0.5 }}>
-            Spend vs Budget
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 3 }}>
-            Monthly spending compared to your R15,000 budget
-          </Typography>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={monthlyTrend} barGap={4}>
-              <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-              <XAxis
-                dataKey="month"
-                axisLine={false} tickLine={false}
-                tick={{ fill: '#8892A4', fontSize: 12 }}
-              />
-              <YAxis
-                axisLine={false} tickLine={false}
-                tick={{ fill: '#8892A4', fontSize: 11 }}
-                tickFormatter={(v) => `R${(v / 1000).toFixed(0)}k`}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '16px' }} />
-              <Bar dataKey="amount" name="Spent" fill="#7C5CFC" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="budget" name="Budget" fill="rgba(255,255,255,0.06)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Box>
-
-        <Box sx={{
-          flex: 1, minWidth: 240, p: 3, borderRadius: 3,
-          background: '#161A23',
-          border: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', mb: 3 }}>
-            By Category
-          </Typography>
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie data={categories} cx="50%" cy="50%" outerRadius={80} dataKey="amount" stroke="none">
-                {categories.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
-                ))}
-              </Pie>
-                        <Tooltip
-                formatter={(v) => [formatZAR(Number(v)), '']}
-                contentStyle={{
-                  backgroundColor: '#1E2330',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12, fontSize: 12,
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <Box sx={{ mt: 2 }}>
-            {categories.slice(0, 4).map(cat => (
-              <Box key={cat.category} sx={{
-                display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', mb: 1,
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: cat.color }} />
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
-                    {cat.category}
-                  </Typography>
-                </Box>
-                <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
-                  {cat.percentage}%
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      </Box>
-
-      <Box sx={{ display: 'flex', gap: 3, mb: 3, flexWrap: 'wrap' }}>
-        <Box sx={{
-          flex: 2, minWidth: 280, p: 3, borderRadius: 3,
-          background: '#161A23',
-          border: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', mb: 0.5 }}>
-            Spending Trend
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 3 }}>
-            How your spending has moved over the past 5 months
-          </Typography>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={monthlyTrend}>
-              <CartesianGrid stroke="rgba(255,255,255,0.04)" />
-              <XAxis
-                dataKey="month" axisLine={false} tickLine={false}
-                tick={{ fill: '#8892A4', fontSize: 12 }}
-              />
-              <YAxis
-                axisLine={false} tickLine={false}
-                tick={{ fill: '#8892A4', fontSize: 11 }}
-                tickFormatter={(v) => `R${(v / 1000).toFixed(0)}k`}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line
-                type="monotone" dataKey="amount" name="Spent"
-                stroke="#7C5CFC" strokeWidth={2.5}
-                dot={{ fill: '#7C5CFC', r: 4 }} activeDot={{ r: 6 }}
-              />
-              <Line
-                type="monotone" dataKey="budget" name="Budget"
-                stroke="rgba(255,255,255,0.2)" strokeWidth={1.5}
-                strokeDasharray="5 5" dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </Box>
-
-        <Box sx={{
-          flex: 1, minWidth: 240, p: 3, borderRadius: 3,
-          background: '#161A23',
-          border: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', mb: 0.5 }}>
-            Spend by Day
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 3 }}>
-            Which days you spend the most
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {dayPattern.map(({ day, amount }) => {
-              const max = Math.max(...dayPattern.map(d => d.amount));
-              const pct = (amount / max) * 100;
-              const isHighest = amount === max;
-              return (
-                <Box key={day} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', width: 28, fontSize: '0.75rem' }}>
-                    {day}
-                  </Typography>
-                  <Box sx={{
-                    flex: 1, height: 8, borderRadius: 4,
-                    backgroundColor: 'rgba(255,255,255,0.05)', overflow: 'hidden',
+        <ChartCard title="By Category" subtitle="Where your spending goes" flex={1}>
+          {byCategory.length === 0 ? (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              No transactions yet.
+            </Typography>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie data={byCategory} cx="50%" cy="50%" outerRadius={80} dataKey="amount" stroke="none">
+                    {byCategory.map((entry, index) => (
+                      <Cell key={index} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(v) => [formatZAR(Number(v)), '']}
+                    contentStyle={{
+                      backgroundColor: '#1E2330',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 12, fontSize: 12,
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <Box sx={{ mt: 2 }}>
+                {byCategory.slice(0, 4).map((cat) => (
+                  <Box key={cat.category} sx={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1,
                   }}>
-                    <Box sx={{
-                      width: `${pct}%`, height: '100%', borderRadius: 4,
-                      backgroundColor: isHighest ? '#FF5A7E' : '#7C5CFC',
-                      transition: 'width 0.6s ease',
-                    }} />
-                  </Box>
-                  <Typography variant="caption" sx={{
-                    fontWeight: 600, fontSize: '0.72rem',
-                    color: isHighest ? '#FF5A7E' : 'text.secondary',
-                    width: 70, textAlign: 'right',
-                  }}>
-                    {formatZAR(amount)}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
-        </Box>
-      </Box>
-
-      <Box sx={{
-        p: 3, borderRadius: 3,
-        background: '#161A23',
-        border: '1px solid rgba(255,255,255,0.06)',
-      }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', mb: 0.5 }}>
-          Top Merchants
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 3 }}>
-          Where most of your money is going this month
-        </Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {merchantList.map(([name, amount], idx) => {
-            const pct = (amount / totalMerchantSpend) * 100;
-            return (
-              <Box key={name}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.8 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{
-                      width: 28, height: 28, borderRadius: 1.5,
-                      backgroundColor: alpha(colors[idx], 0.15),
-                      display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: '0.9rem',
-                    }}>
-                      {mockTransactions.find(t => t.merchantName === name)?.merchantLogo || '🏪'}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: cat.color }} />
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                        {cat.category}
+                      </Typography>
                     </Box>
-                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                      {name}
+                    <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
+                      {cat.percentage}%
                     </Typography>
                   </Box>
-                  <Box sx={{ textAlign: 'right' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                ))}
+              </Box>
+            </>
+          )}
+        </ChartCard>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 3, mb: 3, flexWrap: 'wrap' }}>
+        <ChartCard title="Spend by Day" subtitle="Which days you spend the most" flex={2}>
+          {transactions.length === 0 ? (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              No transactions yet.
+            </Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {spendByDay.map(({ day, amount }) => {
+                const pct = (amount / maxDay) * 100;
+                const isHighest = amount === maxDay && amount > 0;
+                return (
+                  <Box key={day} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', width: 28, fontSize: '0.75rem' }}>
+                      {day}
+                    </Typography>
+                    <Box sx={{
+                      flex: 1, height: 8, borderRadius: 4,
+                      backgroundColor: 'rgba(255,255,255,0.05)', overflow: 'hidden',
+                    }}>
+                      <Box sx={{
+                        width: `${pct}%`, height: '100%', borderRadius: 4,
+                        backgroundColor: isHighest ? '#FF5A7E' : '#7C5CFC',
+                        transition: 'width 0.6s ease',
+                      }} />
+                    </Box>
+                    <Typography variant="caption" sx={{
+                      fontWeight: 600, fontSize: '0.72rem',
+                      color: isHighest ? '#FF5A7E' : 'text.secondary',
+                      width: 70, textAlign: 'right',
+                    }}>
                       {formatZAR(amount)}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                      {pct.toFixed(0)}% of top spend
-                    </Typography>
                   </Box>
-                </Box>
-                <Box sx={{
-                  height: 6, borderRadius: 3,
-                  backgroundColor: 'rgba(255,255,255,0.05)', overflow: 'hidden',
-                }}>
-                  <Box sx={{
-                    width: `${pct}%`, height: '100%', borderRadius: 3,
-                    backgroundColor: colors[idx],
-                    transition: 'width 0.6s ease',
-                  }} />
-                </Box>
-              </Box>
-            );
-          })}
-        </Box>
+                );
+              })}
+            </Box>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Top Merchants" subtitle="Where most of your money goes" flex={1}>
+          {topMerchants.list.length === 0 ? (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              No transactions yet.
+            </Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {topMerchants.list.map(([name, amount], idx) => {
+                const pct = topMerchants.total === 0 ? 0 : (amount / topMerchants.total) * 100;
+                return (
+                  <Box key={name}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.8 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Box sx={{
+                          width: 28, height: 28, borderRadius: 1.5,
+                          backgroundColor: alpha(PALETTE[idx], 0.15),
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem',
+                        }}>
+                          {categoryEmojis[
+                            transactions.find((t) => t.merchantName === name)?.category || 'Other'
+                          ] || '🏪'}
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                          {name}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {formatZAR(amount)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                          {pct.toFixed(0)}% of top spend
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{
+                      height: 6, borderRadius: 3,
+                      backgroundColor: 'rgba(255,255,255,0.05)', overflow: 'hidden',
+                    }}>
+                      <Box sx={{
+                        width: `${pct}%`, height: '100%', borderRadius: 3,
+                        backgroundColor: PALETTE[idx],
+                        transition: 'width 0.6s ease',
+                      }} />
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+        </ChartCard>
       </Box>
     </Box>
   );
