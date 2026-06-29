@@ -5,6 +5,12 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface RegisterRequest {
+  fullName: string;
+  email: string;
+  password: string;
+}
+
 export interface AuthResponse {
   userId: string;
   fullName: string;
@@ -19,7 +25,17 @@ export const login = async (payload: LoginRequest): Promise<AuthResponse> => {
   localStorage.setItem("cardify_token", response.data.token);
   localStorage.setItem("cardify_user", JSON.stringify(response.data));
 
-  // Let the header/sidebar avatars refresh immediately after login.
+  window.dispatchEvent(new Event("cardify-user-updated"));
+
+  return response.data;
+};
+
+export const register = async (payload: RegisterRequest): Promise<AuthResponse> => {
+  const response = await api.post<AuthResponse>("/Auth/register", payload);
+
+  localStorage.setItem("cardify_token", response.data.token);
+  localStorage.setItem("cardify_user", JSON.stringify(response.data));
+
   window.dispatchEvent(new Event("cardify-user-updated"));
 
   return response.data;
