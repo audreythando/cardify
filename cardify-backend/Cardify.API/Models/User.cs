@@ -18,11 +18,15 @@ public class User
 
     public List<AiInsight> AiInsights { get; set; } = new();
 
-    public string PasswordHash { get; set; } = string.Empty;
+    public string? PasswordHash { get; set; }
 
-public string PasswordSalt { get; set; } = string.Empty;
+    public string? PasswordSalt { get; set; }
 
-public string? AvatarUrl { get; set; }
+    public string? AvatarUrl { get; set; }
 
-public string? PhoneNumber { get; set; }
+    public string? PhoneNumber { get; set; }
+
+    public string Provider { get; set; } = "Local";
+
+    public string? ProviderId { get; set; }
 }
