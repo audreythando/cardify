@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
   Box, Typography, TextField, Button,
-  Divider, alpha, CircularProgress
+  Divider, alpha, CircularProgress, Alert
 } from '@mui/material';
 import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
 import GoogleIcon from '@mui/icons-material/Google';
 import MicrosoftIcon from '@mui/icons-material/Window';
+import { register } from '../services/authservice';
 
 interface RegisterPageProps {
   onRegister: () => void;
@@ -17,12 +18,37 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleRegister = async () => {
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setLoading(false);
-    onRegister();
+    setError('');
+
+    if (!fullName.trim() || !email.trim() || !password) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await register({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password,
+      });
+      onRegister();
+    } catch (err: any) {
+      if (err?.response?.status === 400) {
+        setError('An account with this email already exists.');
+      } else {
+        setError('Could not create account. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const passwordStrength = password.length === 0
@@ -41,7 +67,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
       justifyContent: 'center',
       p: 2,
     }}>
-
       <Box sx={{
         position: 'fixed', top: '20%', left: '50%',
         transform: 'translateX(-50%)',
@@ -81,6 +106,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
           Start managing your finances smarter with AI.
         </Typography>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
           <Button
@@ -144,6 +175,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
               placeholder="Create a password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleRegister();
+                }
+              }}
             />
             {passwordStrength && (
               <Box sx={{ mt: 1 }}>
