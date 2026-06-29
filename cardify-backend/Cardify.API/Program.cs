@@ -7,6 +7,13 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Render provides the port via the PORT env var; bind to it in production.
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 builder.Services.AddControllers();
 builder.Services.AddAuthorization();
 
@@ -84,12 +91,18 @@ builder.Services.AddSwaggerGen(options =>
         });
 });
 
+
+var allowedOrigins = (builder.Configuration["AllowedOrigins"] ?? "http://localhost:5173")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .Select(o => o.TrimEnd('/'))
+    .ToArray();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173")
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -101,9 +114,10 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
+app.UseRouting();
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
