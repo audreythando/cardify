@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Google.Apis.Auth;
 
 namespace Cardify.Api.Services;
 
@@ -39,7 +40,8 @@ public class AuthService
             FullName = request.FullName,
             Email = request.Email,
             PasswordHash = passwordHash,
-            PasswordSalt = passwordSalt
+            PasswordSalt = passwordSalt,
+            Provider = "Local"
         };
 
         _context.Users.Add(user);
@@ -65,6 +67,12 @@ public class AuthService
             return null;
         }
 
+        // OAuth users have no password — they must use their provider to sign in.
+        if (string.IsNullOrEmpty(user.PasswordHash) || string.IsNullOrEmpty(user.PasswordSalt))
+        {
+            return null;
+        }
+
         var isPasswordValid = VerifyPasswordHash(
             request.Password,
             user.PasswordHash,
@@ -86,6 +94,65 @@ public class AuthService
         };
     }
 
+public async Task<AuthResponse?> GoogleLoginAsync(string accessToken)
+{
+    GoogleUserInfo? googleUser;
+
+    try
+    {
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await httpClient.GetAsync(
+            "https://www.googleapis.com/oauth2/v3/userinfo");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var json = await response.Content.ReadAsStringAsync();
+        googleUser = System.Text.Json.JsonSerializer.Deserialize<GoogleUserInfo>(json);
+    }
+    catch
+    {
+        return null;
+    }
+
+    if (googleUser is null || string.IsNullOrEmpty(googleUser.Email))
+    {
+        return null;
+    }
+
+    var user = await _context.Users
+        .FirstOrDefaultAsync(u => u.Email == googleUser.Email);
+
+    if (user is null)
+    {
+        user = new User
+        {
+            FullName = googleUser.Name ?? googleUser.Email,
+            Email = googleUser.Email,
+            Provider = "Google",
+            ProviderId = googleUser.Sub,
+            AvatarUrl = googleUser.Picture
+        };
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+    }
+
+    return new AuthResponse
+    {
+        UserId = user.Id,
+        FullName = user.FullName,
+        Email = user.Email,
+        AvatarUrl = user.AvatarUrl,
+        Token = CreateToken(user)
+    };
+}
+
     public async Task<ChangePasswordResult> ChangePasswordAsync(
         Guid userId,
         string currentPassword,
@@ -95,6 +162,12 @@ public class AuthService
         if (user is null)
         {
             return ChangePasswordResult.UserNotFound;
+        }
+
+        // OAuth users have no password to change.
+        if (string.IsNullOrEmpty(user.PasswordHash) || string.IsNullOrEmpty(user.PasswordSalt))
+        {
+            return ChangePasswordResult.IncorrectPassword;
         }
 
         var isCurrentValid = VerifyPasswordHash(
@@ -172,6 +245,21 @@ public class AuthService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+}
+
+public class GoogleUserInfo
+{
+    [System.Text.Json.Serialization.JsonPropertyName("sub")]
+    public string Sub { get; set; } = string.Empty;
+
+    [System.Text.Json.Serialization.JsonPropertyName("email")]
+    public string Email { get; set; } = string.Empty;
+
+    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("picture")]
+    public string? Picture { get; set; }
 }
 
 public enum ChangePasswordResult

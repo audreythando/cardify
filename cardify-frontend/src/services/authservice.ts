@@ -45,3 +45,14 @@ export const logout = () => {
   localStorage.removeItem("cardify_token");
   localStorage.removeItem("cardify_user");
 };
+
+export const googleLogin = async (accessToken: string): Promise<AuthResponse> => {
+  const response = await api.post<AuthResponse>("/Auth/google", { credential: accessToken });
+
+  localStorage.setItem("cardify_token", response.data.token);
+  localStorage.setItem("cardify_user", JSON.stringify(response.data));
+
+  window.dispatchEvent(new Event("cardify-user-updated"));
+
+  return response.data;
+};
