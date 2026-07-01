@@ -7,6 +7,8 @@ import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
 import GoogleIcon from '@mui/icons-material/Google';
 import MicrosoftIcon from '@mui/icons-material/Window';
 import { login } from '../services/authservice';
+import { useGoogleLogin } from '@react-oauth/google';
+import { googleLogin } from '../services/authservice';
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -42,6 +44,22 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoToRegister }) => {
       setLoading(false);
     }
   };
+
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setError('');
+      try {
+        setLoading(true);
+        await googleLogin(tokenResponse.access_token);
+        onLogin();
+      } catch {
+        setError('Google sign-in failed. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: () => setError('Google sign-in was cancelled or failed.'),
+  });
 
   return (
     <Box sx={{
@@ -99,7 +117,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoToRegister }) => {
         )}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
-          <Button fullWidth variant="outlined" startIcon={<GoogleIcon sx={{ fontSize: 18 }} />}>
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<GoogleIcon sx={{ fontSize: 18 }} />}
+            onClick={() => handleGoogleLogin()}
+          >
             Continue with Google
           </Button>
           <Button fullWidth variant="outlined" startIcon={<MicrosoftIcon sx={{ fontSize: 18 }} />}>

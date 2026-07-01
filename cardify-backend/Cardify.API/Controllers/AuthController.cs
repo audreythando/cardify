@@ -31,32 +31,44 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-public async Task<IActionResult> Login(LoginRequest request)
-{
-    var result = await _authService.LoginAsync(request);
-
-    if (result is null)
+    public async Task<IActionResult> Login(LoginRequest request)
     {
-        return Unauthorized("Invalid email or password.");
+        var result = await _authService.LoginAsync(request);
+
+        if (result is null)
+        {
+            return Unauthorized("Invalid email or password.");
+        }
+
+        return Ok(result);
     }
 
-    return Ok(result);
-}
-
-[Authorize]
-[HttpGet("me")]
-public IActionResult GetCurrentUser()
-{
-    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var fullName = User.FindFirstValue(ClaimTypes.Name);
-    var email = User.FindFirstValue(ClaimTypes.Email);
-
-    return Ok(new
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin(GoogleLoginRequest request)
     {
-        userId,
-        fullName,
-        email
-    });
-}
+        var result = await _authService.GoogleLoginAsync(request.Credential);
 
+        if (result is null)
+        {
+            return Unauthorized("Google authentication failed.");
+        }
+
+        return Ok(result);
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public IActionResult GetCurrentUser()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var fullName = User.FindFirstValue(ClaimTypes.Name);
+        var email = User.FindFirstValue(ClaimTypes.Email);
+
+        return Ok(new
+        {
+            userId,
+            fullName,
+            email
+        });
+    }
 }
