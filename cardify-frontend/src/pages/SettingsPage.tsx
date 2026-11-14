@@ -19,6 +19,10 @@ import {
   type NotificationSettings,
   type AiSettings,
 } from '../services/settingsService';
+import {
+  validateEmail, validatePersonName, validatePhone, validateNewPassword,
+  hasErrors, getApiErrorMessage, LIMITS, type FieldErrors,
+} from '../utils/validation';
 
 interface SettingRowProps {
   label: string;
@@ -102,6 +106,8 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .toUpperCase() || 'CU';
 
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
 const SettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -136,6 +142,8 @@ const SettingsPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState('');
+  const [profileErrors, setProfileErrors] = useState<FieldErrors<'fullName' | 'email' | 'phoneNumber'>>({});
+  const [pwErrors, setPwErrors] = useState<FieldErrors<'current' | 'new' | 'confirm'>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -158,19 +166,29 @@ const SettingsPage: React.FC = () => {
   }, []);
 
   const handleSaveProfile = async () => {
+    if (savingProfile) return;
+
+    const errors = {
+      fullName: validatePersonName(fullName, 'Full name'),
+      email: validateEmail(email),
+      phoneNumber: validatePhone(phoneNumber),
+    };
+    setProfileErrors(errors);
+    if (hasErrors(errors)) return;
+
     setSavingProfile(true);
     try {
       const data = await updateProfile({
-        fullName,
-        email,
+        fullName: fullName.trim(),
+        email: email.trim(),
         phoneNumber: phoneNumber.trim() === '' ? null : phoneNumber.trim(),
       });
       setFullName(data.fullName);
       setEmail(data.email);
       setPhoneNumber(data.phoneNumber ?? '');
       setToast({ msg: 'Profile updated.', severity: 'success' });
-    } catch {
-      setToast({ msg: 'Could not save profile. The email may already be in use.', severity: 'error' });
+    } catch (err) {
+      setToast({ msg: getApiErrorMessage(err, 'Could not save profile. Please try again.'), severity: 'error' });
     } finally {
       setSavingProfile(false);
     }
@@ -205,27 +223,33 @@ const SettingsPage: React.FC = () => {
     setNewPassword('');
     setConfirmPassword('');
     setPwError('');
+    setPwErrors({});
   };
 
   const handleChangePassword = async () => {
+    if (pwSaving) return;
     setPwError('');
 
-    if (newPassword.length < 6) {
-      setPwError('New password must be at least 6 characters.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPwError('New passwords do not match.');
-      return;
-    }
+    const newError = validateNewPassword(newPassword);
+    const errors = {
+      current: currentPassword ? '' : 'Current password is required.',
+      new: newError || (newPassword === currentPassword ? 'New password must be different from your current password.' : ''),
+      confirm: !confirmPassword
+        ? 'Please confirm your new password.'
+        : confirmPassword !== newPassword
+          ? 'Passwords do not match.'
+          : '',
+    };
+    setPwErrors(errors);
+    if (hasErrors(errors)) return;
 
     setPwSaving(true);
     try {
       await changePassword(currentPassword, newPassword);
       closePwDialog();
       setToast({ msg: 'Password updated.', severity: 'success' });
-    } catch {
-      setPwError('Could not change password. Check your current password and try again.');
+    } catch (err) {
+      setPwError(getApiErrorMessage(err, 'Could not change password. Check your current password and try again.'));
     } finally {
       setPwSaving(false);
     }
@@ -234,6 +258,12 @@ const SettingsPage: React.FC = () => {
   const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setToast({ msg: 'Please choose a PNG, JPEG, GIF or WebP image.', severity: 'error' });
+      e.target.value = '';
+      return;
+    }
 
     if (file.size > 1024 * 1024) {
       setToast({ msg: 'Please choose an image under 1MB.', severity: 'error' });
@@ -317,7 +347,7 @@ const SettingsPage: React.FC = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept={ALLOWED_IMAGE_TYPES.join(',')}
             hidden
             onChange={handlePhotoSelected}
           />
@@ -332,7 +362,10 @@ const SettingsPage: React.FC = () => {
               <TextField
                 fullWidth size="small"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => { setFullName(e.target.value); setProfileErrors((f) => ({ ...f, fullName: '' })); }}
+                error={!!profileErrors.fullName}
+                helperText={profileErrors.fullName}
+                slotProps={{ htmlInput: { maxLength: LIMITS.nameMax } }}
               />
             </Box>
             <Box sx={{ flex: 1, minWidth: 200 }}>
@@ -341,8 +374,12 @@ const SettingsPage: React.FC = () => {
               </Typography>
               <TextField
                 fullWidth size="small"
+                type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setProfileErrors((f) => ({ ...f, email: '' })); }}
+                error={!!profileErrors.email}
+                helperText={profileErrors.email}
+                slotProps={{ htmlInput: { maxLength: LIMITS.emailMax } }}
               />
             </Box>
           </Box>
@@ -353,8 +390,12 @@ const SettingsPage: React.FC = () => {
             <TextField
               fullWidth size="small"
               placeholder="+27 XX XXX XXXX"
+              type="tel"
               value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
+              onChange={(e) => { setPhoneNumber(e.target.value); setProfileErrors((f) => ({ ...f, phoneNumber: '' })); }}
+              error={!!profileErrors.phoneNumber}
+              helperText={profileErrors.phoneNumber}
+              slotProps={{ htmlInput: { maxLength: 20 } }}
             />
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -598,15 +639,26 @@ const SettingsPage: React.FC = () => {
           {pwError && <Alert severity="error">{pwError}</Alert>}
           <TextField
             label="Current Password" type="password" size="small" fullWidth
-            value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+            autoComplete="current-password"
+            value={currentPassword}
+            onChange={(e) => { setCurrentPassword(e.target.value); setPwErrors((f) => ({ ...f, current: '' })); }}
+            error={!!pwErrors.current} helperText={pwErrors.current}
           />
           <TextField
             label="New Password" type="password" size="small" fullWidth
-            value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={(e) => { setNewPassword(e.target.value); setPwErrors((f) => ({ ...f, new: '' })); }}
+            error={!!pwErrors.new} helperText={pwErrors.new}
+            slotProps={{ htmlInput: { maxLength: LIMITS.passwordMax } }}
           />
           <TextField
             label="Confirm New Password" type="password" size="small" fullWidth
-            value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => { setConfirmPassword(e.target.value); setPwErrors((f) => ({ ...f, confirm: '' })); }}
+            error={!!pwErrors.confirm} helperText={pwErrors.confirm}
+            slotProps={{ htmlInput: { maxLength: LIMITS.passwordMax } }}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

@@ -50,18 +50,20 @@ public class SettingsController : ControllerBase
             return NotFound();
         }
 
-        // Reject an email already used by a different account.
+        var email = request.Email.Trim().ToLowerInvariant();
+
+        // Reject an email already used by a different account (case-insensitive).
         var emailTaken = await _context.Users
-            .AnyAsync(u => u.Email == request.Email && u.Id != userId);
+            .AnyAsync(u => u.Email.ToLower() == email && u.Id != userId);
 
         if (emailTaken)
         {
             return Conflict(new { message = "That email is already in use." });
         }
 
-        user.FullName = request.FullName;
-        user.Email = request.Email;
-        user.PhoneNumber = request.PhoneNumber;
+        user.FullName = request.FullName.Trim();
+        user.Email = email;
+        user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
 
         await _context.SaveChangesAsync();
 
@@ -101,9 +103,9 @@ public class SettingsController : ControllerBase
     [HttpPut("password")]
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+        if (request.NewPassword == request.CurrentPassword)
         {
-            return BadRequest(new { message = "New password must be at least 6 characters." });
+            return BadRequest(new { message = "New password must be different from your current password." });
         }
 
         var result = await _authService.ChangePasswordAsync(
@@ -136,11 +138,25 @@ public class SettingsController : ControllerBase
             return BadRequest(new { message = "Image is too large. Please use an image under 1MB." });
         }
 
+        // Only accept uploaded images (base64 data URLs), not arbitrary links.
+        if (request.AvatarUrl is not null && !AllowedAvatarPrefixes.Any(p => request.AvatarUrl.StartsWith(p, StringComparison.Ordinal)))
+        {
+            return BadRequest(new { message = "Photo must be a PNG, JPEG, GIF or WebP image." });
+        }
+
         user.AvatarUrl = request.AvatarUrl;
         await _context.SaveChangesAsync();
 
         return Ok(new { avatarUrl = user.AvatarUrl });
     }
+
+    private static readonly string[] AllowedAvatarPrefixes =
+    {
+        "data:image/png;base64,",
+        "data:image/jpeg;base64,",
+        "data:image/gif;base64,",
+        "data:image/webp;base64,",
+    };
 
     private async Task<UserSettings> GetOrCreateSettingsAsync(Guid userId)
     {
