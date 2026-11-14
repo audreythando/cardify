@@ -87,6 +87,8 @@ const SpendingOverview: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 1,
           mb: 3,
         }}
       >
@@ -129,7 +131,10 @@ const SpendingOverview: React.FC = () => {
 
       {!loading && !error && categories.length > 0 && (
         <>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Box sx={{
+            display: 'flex', alignItems: 'center', gap: 3,
+            flexDirection: { xs: 'column', sm: 'row' },
+          }}>
             <Box sx={{ position: 'relative', width: 180, height: 180, flexShrink: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -180,7 +185,7 @@ const SpendingOverview: React.FC = () => {
               </Box>
             </Box>
 
-            <Box sx={{ flex: 1 }}>
+            <Box sx={{ flex: 1, width: '100%', minWidth: 0 }}>
               {categories.map((cat) => (
                 <Box
                   key={cat.category}

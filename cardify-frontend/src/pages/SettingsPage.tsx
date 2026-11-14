@@ -278,18 +278,18 @@ const SettingsPage: React.FC = () => {
     <Box sx={{ maxWidth: 760 }}>
 
       <SectionCard icon={<PersonRoundedIcon />} title="Profile" iconColor="#7C5CFC">
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, mb: 3, flexWrap: 'wrap' }}>
           <Avatar
             src={avatarUrl ?? undefined}
             sx={{ width: 64, height: 64, bgcolor: 'primary.main' }}
           >
             {getInitials(fullName)}
           </Avatar>
-          <Box>
+          <Box sx={{ flex: '1 1 160px', minWidth: 0 }}>
             <Typography variant="body1" sx={{ fontWeight: 700, mb: 0.3 }}>
               {fullName || 'Cardify User'}
             </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1, overflowWrap: 'anywhere' }}>
               {email}
             </Typography>
             <Chip
@@ -565,7 +565,11 @@ const SettingsPage: React.FC = () => {
           <Typography variant="body1" sx={{ fontWeight: 700 }}>Danger Zone</Typography>
         </Box>
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.04)', mb: 2 }} />
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+        <Box sx={{
+          display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' },
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between', gap: 2,
+        }}>
           <Box>
             <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.2 }}>
               Delete Account

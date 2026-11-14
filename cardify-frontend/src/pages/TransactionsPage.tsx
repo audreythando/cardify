@@ -212,7 +212,7 @@ const TransactionsPage: React.FC = () => {
               ),
             },
           }}
-          sx={{ minWidth: 260 }}
+          sx={{ minWidth: { xs: '100%', sm: 260 } }}
         />
         <Select
           value={category}
