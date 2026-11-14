@@ -25,8 +25,11 @@ public class AuthService
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
+        // Emails are matched case-insensitively so "A@x.com" and "a@x.com" are one account.
+        var email = request.Email.Trim().ToLowerInvariant();
+
         var existingUser = await _context.Users
-            .FirstOrDefaultAsync(user => user.Email == request.Email);
+            .FirstOrDefaultAsync(user => user.Email.ToLower() == email);
 
         if (existingUser is not null)
         {
@@ -37,8 +40,8 @@ public class AuthService
 
         var user = new User
         {
-            FullName = request.FullName,
-            Email = request.Email,
+            FullName = request.FullName.Trim(),
+            Email = email,
             PasswordHash = passwordHash,
             PasswordSalt = passwordSalt,
             Provider = "Local"
@@ -59,8 +62,10 @@ public class AuthService
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
+        var email = request.Email.Trim().ToLowerInvariant();
+
         var user = await _context.Users
-            .FirstOrDefaultAsync(user => user.Email == request.Email);
+            .FirstOrDefaultAsync(user => user.Email.ToLower() == email);
 
         if (user is null)
         {
@@ -126,7 +131,7 @@ public async Task<AuthResponse?> GoogleLoginAsync(string accessToken)
     }
 
     var user = await _context.Users
-        .FirstOrDefaultAsync(u => u.Email == googleUser.Email);
+        .FirstOrDefaultAsync(u => u.Email.ToLower() == googleUser.Email.ToLower());
 
     if (user is null)
     {
