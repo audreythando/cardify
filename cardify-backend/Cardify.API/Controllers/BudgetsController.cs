@@ -1,6 +1,7 @@
 using Cardify.Api.Data;
 using Cardify.Api.DTOs.Budgets;
 using Cardify.Api.Models;
+using Cardify.Api.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,10 +25,16 @@ public class BudgetsController : ControllerBase
     public async Task<IActionResult> CreateBudget(CreateBudgetRequest request)
     {
         var userId = GetCurrentUserId();
+        var category = SpendingCategories.Normalize(request.Category)!;
+
+        if (await CategoryInUseAsync(userId, category, excludeBudgetId: null))
+        {
+            return Conflict(new { message = $"You already have a budget for {category}." });
+        }
 
         var budget = new Budget
         {
-            Category = request.Category,
+            Category = category,
             LimitAmount = request.LimitAmount,
             CurrentSpent = 0,
             Month = DateTime.UtcNow,
@@ -103,7 +110,14 @@ public async Task<IActionResult> UpdateBudget(
         return NotFound("Budget not found.");
     }
 
-    budget.Category = request.Category;
+    var category = SpendingCategories.Normalize(request.Category)!;
+
+    if (await CategoryInUseAsync(userId, category, excludeBudgetId: id))
+    {
+        return Conflict(new { message = $"You already have a budget for {category}." });
+    }
+
+    budget.Category = category;
     budget.LimitAmount = request.LimitAmount;
 
     await _context.SaveChangesAsync();
@@ -148,5 +162,14 @@ public async Task<IActionResult> DeleteBudget(Guid id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.Parse(userId!);
+    }
+
+    private Task<bool> CategoryInUseAsync(Guid userId, string category, Guid? excludeBudgetId)
+    {
+        var lowered = category.ToLower();
+        return _context.Budgets.AnyAsync(budget =>
+            budget.UserId == userId &&
+            budget.Category.ToLower() == lowered &&
+            (excludeBudgetId == null || budget.Id != excludeBudgetId));
     }
 }

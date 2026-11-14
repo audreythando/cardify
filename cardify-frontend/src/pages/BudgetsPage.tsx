@@ -13,6 +13,9 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import { formatZAR } from '../utils/format';
 import { getBudgets, createBudget, type Budget } from '../services/budgetsService';
 import { SPENDING_CATEGORIES } from '../utils/categories';
+import { validateAmount, getApiErrorMessage } from '../utils/validation';
+
+const MAX_BUDGET_LIMIT = 1_000_000;
 
 const categoryEmojis: Record<string, string> = {
   Shopping: '🛍️',
@@ -39,6 +42,19 @@ const BudgetsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [form, setForm] = useState({ category: 'Groceries', limitAmount: '' });
+  const [fieldErrors, setFieldErrors] = useState<{ category?: string; limitAmount?: string }>({});
+
+  // One budget per category: categories that already have a budget can't be picked again.
+  const usedCategories = new Set(budgets.map((b) => b.category.toLowerCase()));
+  const isCategoryUsed = (c: string) => usedCategories.has(c.toLowerCase());
+  const firstFreeCategory = CATEGORY_OPTIONS.find((c) => !isCategoryUsed(c));
+
+  const openAddDialog = () => {
+    setForm({ category: firstFreeCategory ?? CATEGORY_OPTIONS[0], limitAmount: '' });
+    setFormError('');
+    setFieldErrors({});
+    setAddOpen(true);
+  };
 
   const loadBudgets = async () => {
     try {
@@ -58,6 +74,7 @@ const BudgetsPage: React.FC = () => {
   const resetForm = () => {
     setForm({ category: 'Groceries', limitAmount: '' });
     setFormError('');
+    setFieldErrors({});
   };
 
   const closeAddDialog = () => {
@@ -66,21 +83,25 @@ const BudgetsPage: React.FC = () => {
   };
 
   const handleCreateBudget = async () => {
+    if (saving) return;
     setFormError('');
 
-    const limit = parseFloat(form.limitAmount);
-    if (isNaN(limit) || limit <= 0) {
-      setFormError('Enter a valid limit amount.');
-      return;
-    }
+    const errors = {
+      category: isCategoryUsed(form.category) ? `You already have a budget for ${form.category}.` : '',
+      limitAmount: validateAmount(form.limitAmount, { label: 'Monthly limit', max: MAX_BUDGET_LIMIT }),
+    };
+    setFieldErrors(errors);
+    if (errors.category || errors.limitAmount) return;
+
+    const limit = Number(form.limitAmount);
 
     setSaving(true);
     try {
       await createBudget({ category: form.category, limitAmount: limit });
       closeAddDialog();
       await loadBudgets();
-    } catch {
-      setFormError('Could not add budget. Please try again.');
+    } catch (err) {
+      setFormError(getApiErrorMessage(err, 'Could not add budget. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -91,6 +112,9 @@ const BudgetsPage: React.FC = () => {
       <DialogTitle>Add Budget</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
         {formError && <Alert severity="error">{formError}</Alert>}
+        {!firstFreeCategory && (
+          <Alert severity="info">Every category already has a budget.</Alert>
+        )}
 
         <TextField
           label="Category"
@@ -98,11 +122,16 @@ const BudgetsPage: React.FC = () => {
           fullWidth
           select
           value={form.category}
-          onChange={(e) => setForm({ ...form, category: e.target.value })}
+          onChange={(e) => {
+            setForm({ ...form, category: e.target.value });
+            setFieldErrors((f) => ({ ...f, category: '' }));
+          }}
+          error={!!fieldErrors.category}
+          helperText={fieldErrors.category}
         >
           {CATEGORY_OPTIONS.map((c) => (
-            <MenuItem key={c} value={c}>
-              {categoryEmojis[c] ?? '📦'} {c}
+            <MenuItem key={c} value={c} disabled={isCategoryUsed(c)}>
+              {categoryEmojis[c] ?? '📦'} {c}{isCategoryUsed(c) ? ' (budget exists)' : ''}
             </MenuItem>
           ))}
         </TextField>
@@ -113,7 +142,13 @@ const BudgetsPage: React.FC = () => {
           fullWidth
           type="number"
           value={form.limitAmount}
-          onChange={(e) => setForm({ ...form, limitAmount: e.target.value })}
+          onChange={(e) => {
+            setForm({ ...form, limitAmount: e.target.value });
+            if (fieldErrors.limitAmount) setFieldErrors((f) => ({ ...f, limitAmount: '' }));
+          }}
+          error={!!fieldErrors.limitAmount}
+          helperText={fieldErrors.limitAmount}
+          slotProps={{ htmlInput: { min: 1, max: MAX_BUDGET_LIMIT, step: '0.01', inputMode: 'decimal' } }}
         />
 
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -122,7 +157,7 @@ const BudgetsPage: React.FC = () => {
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={closeAddDialog} color="inherit">Cancel</Button>
-        <Button onClick={handleCreateBudget} variant="contained" disabled={saving}>
+        <Button onClick={handleCreateBudget} variant="contained" disabled={saving || !firstFreeCategory}>
           {saving ? 'Adding…' : 'Add Budget'}
         </Button>
       </DialogActions>
@@ -167,7 +202,7 @@ const BudgetsPage: React.FC = () => {
             variant="contained"
             startIcon={<AddRoundedIcon />}
             size="small"
-            onClick={() => setAddOpen(true)}
+            onClick={openAddDialog}
             sx={{ borderRadius: 2 }}
           >
             Add Budget
@@ -343,7 +378,7 @@ const BudgetsPage: React.FC = () => {
         })}
 
         <Box
-          onClick={() => setAddOpen(true)}
+          onClick={openAddDialog}
           sx={{
             p: 2.5, borderRadius: 3, cursor: 'pointer',
             border: '2px dashed rgba(255,255,255,0.08)',
