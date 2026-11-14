@@ -14,9 +14,11 @@ import { validateEmail, hasErrors, getApiErrorMessage, type FieldErrors } from '
 interface LoginPageProps {
   onLogin: () => void;
   onGoToRegister: () => void;
+  /** Informational message shown above the form, e.g. after a session expires. */
+  notice?: string;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoToRegister }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoToRegister, notice }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -119,6 +121,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoToRegister }) => {
         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
           Welcome back! Enter your details below.
         </Typography>
+
+        {notice && !error && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {notice}
+          </Alert>
+        )}
 
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>

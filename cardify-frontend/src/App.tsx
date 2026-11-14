@@ -1,5 +1,6 @@
 import { ThemeProvider, CssBaseline, Box } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { isAuthenticated, logout, SESSION_EXPIRED_EVENT } from './utils/auth';
 import { theme } from './theme/theme';
 import Sidebar from './components/layout/Sidebar';
 import TopNav from './components/layout/TopNav';
@@ -15,19 +16,37 @@ import RegisterPage from './pages/RegisterPage';
 
 type AuthScreen = 'login' | 'register' | 'app';
 
-const hasToken = () => {
-  return !!localStorage.getItem('cardify_token');
-};
 
 function App() {
-  const [authScreen, setAuthScreen] = useState<AuthScreen>(
-    hasToken() ? 'app' : 'login'
+  // An expired token found on startup is cleared up front rather than
+  // letting every page fail with 401s.
+  const [hadStaleToken] = useState(
+    () => !!localStorage.getItem('cardify_token') && !isAuthenticated()
   );
+  const [authScreen, setAuthScreen] = useState<AuthScreen>(() => {
+    if (isAuthenticated()) return 'app';
+    logout();
+    return 'login';
+  });
+  const [sessionExpired, setSessionExpired] = useState(hadStaleToken);
 
   const [activePage, setActivePage] = useState('dashboard');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // The API client fires this when a request comes back 401.
+  useEffect(() => {
+    const onExpired = () => {
+      setSessionExpired(true);
+      setAuthScreen('login');
+      setActivePage('dashboard');
+      setMobileNavOpen(false);
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, []);
+
   const handleLogin = () => {
+    setSessionExpired(false);
     setAuthScreen('app');
   };
 
@@ -45,6 +64,7 @@ function App() {
         <LoginPage
           onLogin={handleLogin}
           onGoToRegister={() => setAuthScreen('register')}
+          notice={sessionExpired ? 'Your session has expired. Please sign in again.' : undefined}
         />
       </ThemeProvider>
     );
