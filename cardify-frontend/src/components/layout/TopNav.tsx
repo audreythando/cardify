@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import {
   getNotifications,
   markNotificationRead,
@@ -42,9 +43,10 @@ const dotColor = (type: string) => {
 
 interface TopNavProps {
   activePage: string;
+  onMenuClick?: () => void;
 }
 
-const TopNav: React.FC<TopNavProps> = ({ activePage }) => {
+const TopNav: React.FC<TopNavProps> = ({ activePage, onMenuClick }) => {
   const [user, setUser] = useState<StoredUser>(getStoredUser);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -121,20 +123,40 @@ const TopNav: React.FC<TopNavProps> = ({ activePage }) => {
   return (
     <Box sx={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      px: 4, py: 2.5, borderBottom: '1px solid rgba(255,255,255,0.05)',
+      gap: { xs: 1, sm: 2 },
+      px: { xs: 2, md: 4 }, py: { xs: 1.5, md: 2.5 }, borderBottom: '1px solid rgba(255,255,255,0.05)',
       backgroundColor: '#0D0F14', position: 'sticky', top: 0, zIndex: 100,
     }}>
-      <Box>
-        <Typography variant="h5" sx={{ fontWeight: 700, fontSize: '1.3rem' }}>
-          {page.title}
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.3 }}>
-          {page.subtitle}
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+        <IconButton
+          aria-label="Open navigation menu"
+          onClick={onMenuClick}
+          sx={{ display: { xs: 'inline-flex', md: 'none' }, ml: -1 }}
+        >
+          <MenuRoundedIcon />
+        </IconButton>
+
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="h5"
+            noWrap
+            sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', sm: '1.2rem', md: '1.3rem' } }}
+          >
+            {page.title}
+          </Typography>
+          <Typography
+            variant="body2"
+            noWrap
+            sx={{ color: 'text.secondary', mt: 0.3, display: { xs: 'none', sm: 'block' } }}
+          >
+            {page.subtitle}
+          </Typography>
+        </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
         <IconButton sx={{
+          display: { xs: 'none', sm: 'inline-flex' },
           backgroundColor: alpha('#fff', 0.05), borderRadius: 2,
           '&:hover': { backgroundColor: alpha('#fff', 0.08) },
         }}>
@@ -166,7 +188,7 @@ const TopNav: React.FC<TopNavProps> = ({ activePage }) => {
           slotProps={{
             paper: {
               sx: {
-                width: 360, maxHeight: 460, mt: 1,
+                width: 360, maxWidth: 'calc(100vw - 32px)', maxHeight: 460, mt: 1,
                 backgroundColor: '#161A23',
                 border: '1px solid rgba(255,255,255,0.08)',
                 borderRadius: 3,
@@ -231,7 +253,7 @@ const TopNav: React.FC<TopNavProps> = ({ activePage }) => {
 
         <Avatar
           src={user.avatarUrl ?? undefined}
-          sx={{ width: 36, height: 36, cursor: 'pointer', ml: 1, bgcolor: 'primary.main' }}
+          sx={{ width: 36, height: 36, cursor: 'pointer', ml: { xs: 0, sm: 1 }, bgcolor: 'primary.main' }}
         >
           {getInitials(user.fullName)}
         </Avatar>

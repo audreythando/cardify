@@ -25,6 +25,7 @@ function App() {
   );
 
   const [activePage, setActivePage] = useState('dashboard');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handleLogin = () => {
     setAuthScreen('app');
@@ -96,10 +97,12 @@ function App() {
           activePage={activePage}
           onNavigate={setActivePage}
           onLogout={handleLogout}
+          mobileOpen={mobileNavOpen}
+          onMobileClose={() => setMobileNavOpen(false)}
         />
 
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <TopNav activePage={activePage} />
+        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <TopNav activePage={activePage} onMenuClick={() => setMobileNavOpen(true)} />
           <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 2, md: 4 } }}>
             {renderPage()}
           </Box>

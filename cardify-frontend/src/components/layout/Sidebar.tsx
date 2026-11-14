@@ -12,6 +12,8 @@ import {
   Button,
   Divider,
   alpha,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
 import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
@@ -40,6 +42,8 @@ interface SidebarProps {
   activePage: string;
   onNavigate: (page: string) => void;
   onLogout: () => void;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 interface StoredUser {
@@ -79,8 +83,16 @@ const getInitials = (name?: string) => {
     .toUpperCase();
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  activePage,
+  onNavigate,
+  onLogout,
+  mobileOpen = false,
+  onMobileClose,
+}) => {
   const [user, setUser] = useState<StoredUser>(getStoredUser);
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
   // Refresh when the photo/profile changes elsewhere (Settings page, login).
   useEffect(() => {
@@ -94,14 +106,24 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
     onLogout();
   };
 
+  // On small screens the drawer slides over the page; close it after navigating.
+  const navigate = (page: string) => {
+    onNavigate(page);
+    if (!isDesktop) onMobileClose?.();
+  };
+
   return (
     <Drawer
-      variant="permanent"
+      variant={isDesktop ? 'permanent' : 'temporary'}
+      open={isDesktop || mobileOpen}
+      onClose={onMobileClose}
+      ModalProps={{ keepMounted: true }}
       sx={{
-        width: DRAWER_WIDTH,
+        width: isDesktop ? DRAWER_WIDTH : 0,
         flexShrink: 0,
         '& .MuiDrawer-paper': {
           width: DRAWER_WIDTH,
+          maxWidth: '85vw',
           boxSizing: 'border-box',
           backgroundColor: '#0F1117',
           borderRight: '1px solid rgba(255,255,255,0.05)',
@@ -145,7 +167,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
             <ListItemButton
               key={item.id}
               selected={isActive}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => navigate(item.id)}
               sx={{
                 mb: 0.5,
                 py: 1.2,
@@ -226,7 +248,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
           size="small"
           fullWidth
           sx={{ py: 0.8, fontSize: '0.75rem' }}
-          onClick={() => onNavigate('ai-assistant')}
+          onClick={() => navigate('ai-assistant')}
         >
           View AI Insights
         </Button>
