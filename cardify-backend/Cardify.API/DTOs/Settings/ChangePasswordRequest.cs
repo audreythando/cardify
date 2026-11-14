@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Cardify.Api.Validation;
 
 namespace Cardify.Api.DTOs.Settings;
 
@@ -8,6 +9,6 @@ public class ChangePasswordRequest
     public string CurrentPassword { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "New password is required.")]
-    [StringLength(128, MinimumLength = 6, ErrorMessage = "New password must be between 6 and 128 characters.")]
+    [StrongPassword]
     public string NewPassword { get; set; } = string.Empty;
 }

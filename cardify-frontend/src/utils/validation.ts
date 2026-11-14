@@ -8,7 +8,7 @@ const PHONE_RE = /^\+?[0-9\s-]+$/;
 export const LIMITS = {
   nameMax: 100,
   emailMax: 254,
-  passwordMin: 6,
+  passwordMin: 8,
   passwordMax: 128,
   merchantMax: 100,
   maxAmount: 1_000_000,
@@ -38,10 +38,19 @@ export const validatePersonName = (value: string, label = 'Name'): string => {
   return '';
 };
 
+/** Password rules shown to the user and enforced on register / change password. */
+export const PASSWORD_RULES = [
+  { label: `At least ${LIMITS.passwordMin} characters`, test: (v: string) => v.length >= LIMITS.passwordMin },
+  { label: 'One uppercase letter', test: (v: string) => /[A-Z]/.test(v) },
+  { label: 'One number', test: (v: string) => /[0-9]/.test(v) },
+  { label: 'One special character (e.g. ! @ # $)', test: (v: string) => /[^A-Za-z0-9\s]/.test(v) },
+] as const;
+
 export const validateNewPassword = (value: string): string => {
   if (!value) return 'Password is required.';
-  if (value.length < LIMITS.passwordMin) return `Password must be at least ${LIMITS.passwordMin} characters.`;
   if (value.length > LIMITS.passwordMax) return `Password must be ${LIMITS.passwordMax} characters or fewer.`;
+  const missing = PASSWORD_RULES.filter((r) => !r.test(value));
+  if (missing.length) return `Password needs: ${missing.map((r) => r.label.toLowerCase()).join(', ')}.`;
   return '';
 };
 

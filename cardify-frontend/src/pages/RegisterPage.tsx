@@ -7,6 +7,7 @@ import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
 import GoogleIcon from '@mui/icons-material/Google';
 import MicrosoftIcon from '@mui/icons-material/Window';
 import { register } from '../services/authservice';
+import PasswordRequirements from '../components/auth/PasswordRequirements';
 import {
   validateEmail, validatePersonName, validateNewPassword, hasErrors,
   getApiErrorMessage, LIMITS, type FieldErrors,
@@ -67,13 +68,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
       setLoading(false);
     }
   };
-
-  const passwordStrength = password.length === 0
-    ? null : password.length < 6
-    ? { label: 'Too short', color: '#FF5A7E', width: '25%' }
-    : password.length < 10
-    ? { label: 'Fair', color: '#FFB547', width: '55%' }
-    : { label: 'Strong', color: '#00D4AA', width: '100%' };
 
   return (
     <Box sx={{
@@ -213,27 +207,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
                 }
               }}
             />
-            {passwordStrength && (
-              <Box sx={{ mt: 1 }}>
-                <Box sx={{
-                  height: 4, borderRadius: 2,
-                  backgroundColor: 'rgba(255,255,255,0.06)',
-                  overflow: 'hidden', mb: 0.5,
-                }}>
-                  <Box sx={{
-                    width: passwordStrength.width,
-                    height: '100%', borderRadius: 2,
-                    backgroundColor: passwordStrength.color,
-                    transition: 'width 0.3s ease',
-                  }} />
-                </Box>
-                <Typography variant="caption" sx={{
-                  color: passwordStrength.color, fontSize: '0.7rem', fontWeight: 600,
-                }}>
-                  {passwordStrength.label}
-                </Typography>
-              </Box>
-            )}
+            <PasswordRequirements password={password} />
           </Box>
         </Box>
 

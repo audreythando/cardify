@@ -23,6 +23,7 @@ import {
   validateEmail, validatePersonName, validatePhone, validateNewPassword,
   hasErrors, getApiErrorMessage, LIMITS, type FieldErrors,
 } from '../utils/validation';
+import PasswordRequirements from '../components/auth/PasswordRequirements';
 
 interface SettingRowProps {
   label: string;
@@ -652,6 +653,9 @@ const SettingsPage: React.FC = () => {
             error={!!pwErrors.new} helperText={pwErrors.new}
             slotProps={{ htmlInput: { maxLength: LIMITS.passwordMax } }}
           />
+          <Box sx={{ mt: -1 }}>
+            <PasswordRequirements password={newPassword} />
+          </Box>
           <TextField
             label="Confirm New Password" type="password" size="small" fullWidth
             autoComplete="new-password"
