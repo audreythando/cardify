@@ -13,6 +13,7 @@ import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import type { ChatMessage } from '../types';
 import { generateCardifyAdvice } from '../services/aiService';
+import { LIMITS } from '../utils/validation';
 
 const SUGGESTED_PROMPTS = [
   'How can I reduce my spending this month?',
@@ -85,7 +86,7 @@ Ask me things like:
   }, [messages]);
 
   const sendMessage = async (text: string) => {
-    if (!text.trim() || isLoading) return;
+    if (!text.trim() || text.length > LIMITS.aiMessageMax || isLoading) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -305,6 +306,12 @@ Ask me things like:
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          slotProps={{ htmlInput: { maxLength: LIMITS.aiMessageMax } }}
+          helperText={
+            input.length >= LIMITS.aiMessageMax * 0.8
+              ? `${input.length}/${LIMITS.aiMessageMax} characters`
+              : undefined
+          }
           size="small"
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5, fontSize: '0.875rem' } }}
         />
