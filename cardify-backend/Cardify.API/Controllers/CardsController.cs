@@ -76,9 +76,29 @@ public class CardsController : ControllerBase
     {
         var userId = GetCurrentUserId();
 
+        var firstOfThisMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        if (request.ExpiryDate.ToUniversalTime() < firstOfThisMonth)
+        {
+            ModelState.AddModelError(nameof(request.ExpiryDate), "Expiry date cannot be in the past.");
+        }
+        else if (request.ExpiryDate.ToUniversalTime() > firstOfThisMonth.AddYears(20))
+        {
+            ModelState.AddModelError(nameof(request.ExpiryDate), "Expiry date must be within 20 years.");
+        }
+
+        if (request.Balance > request.CreditLimit)
+        {
+            ModelState.AddModelError(nameof(request.Balance), "Balance cannot exceed the credit limit.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
         var card = new CreditCard
         {
-            CardHolderName = request.CardHolderName,
+            CardHolderName = request.CardHolderName.Trim(),
             CardNumber = request.CardNumber,
             CardType = request.CardType,
             Balance = request.Balance,
@@ -117,7 +137,13 @@ public class CardsController : ControllerBase
             return NotFound("Card not found.");
         }
 
-        card.CardHolderName = request.CardHolderName;
+        if (request.Balance > request.CreditLimit)
+        {
+            ModelState.AddModelError(nameof(request.CreditLimit), "Credit limit cannot be lower than the current balance.");
+            return ValidationProblem(ModelState);
+        }
+
+        card.CardHolderName = request.CardHolderName.Trim();
         card.CardType = request.CardType;
         card.Balance = request.Balance;
         card.CreditLimit = request.CreditLimit;

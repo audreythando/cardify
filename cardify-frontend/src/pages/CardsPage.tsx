@@ -30,6 +30,9 @@ import {
   type Transaction,
 } from '../services/dashboardService';
 import type { CreditCard } from '../types';
+import {
+  validatePersonName, validateAmount, hasErrors, getApiErrorMessage, LIMITS, type FieldErrors,
+} from '../utils/validation';
 
 const mapNetwork = (cardType: string): CreditCard['network'] => {
   const value = cardType.toLowerCase();
@@ -274,6 +277,26 @@ const CardDetailPanel: React.FC<CardDetailPanelProps> = ({ card, transactions })
   );
 };
 
+type CardField = 'cardHolderName' | 'creditLimit' | 'expiryDate';
+
+const MAX_EXPIRY_YEARS = 20;
+
+/** "YYYY-MM" for the month `offset` months from now (the format of <input type="month">). */
+const monthValue = (offset: number) => {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const validateExpiry = (value: string): string => {
+  if (!value) return 'Expiry date is required.';
+  if (!/^\d{4}-\d{2}$/.test(value)) return 'Enter a valid month.';
+  if (value < monthValue(0)) return 'Expiry date cannot be in the past.';
+  if (value > monthValue(MAX_EXPIRY_YEARS * 12)) return `Expiry date must be within ${MAX_EXPIRY_YEARS} years.`;
+  return '';
+};
+
 const CardsPage: React.FC = () => {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -290,10 +313,19 @@ const CardsPage: React.FC = () => {
     creditLimit: '',
     expiryDate: '',
   });
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<CardField>>({});
 
   const resetForm = () => {
     setForm({ cardHolderName: '', cardType: 'visa', creditLimit: '', expiryDate: '' });
     setFormError('');
+    setFieldErrors({});
+  };
+
+  const updateField = (field: CardField | 'cardType', value: string) => {
+    setForm((f) => ({ ...f, [field]: value }));
+    if (field !== 'cardType' && fieldErrors[field]) {
+      setFieldErrors((f) => ({ ...f, [field]: '' }));
+    }
   };
 
   const closeAddDialog = () => {
@@ -305,21 +337,18 @@ const CardsPage: React.FC = () => {
     Array.from({ length: 16 }, () => Math.floor(Math.random() * 10)).join('');
 
   const handleCreateCard = async () => {
+    if (saving) return;
     setFormError('');
 
-    if (!form.cardHolderName.trim()) {
-      setFormError('Cardholder name is required.');
-      return;
-    }
-    const limit = parseFloat(form.creditLimit);
-    if (isNaN(limit) || limit <= 0) {
-      setFormError('Enter a valid credit limit.');
-      return;
-    }
-    if (!form.expiryDate) {
-      setFormError('Select an expiry date.');
-      return;
-    }
+    const errors = {
+      cardHolderName: validatePersonName(form.cardHolderName, 'Cardholder name'),
+      creditLimit: validateAmount(form.creditLimit, { label: 'Credit limit', max: LIMITS.maxCreditLimit }),
+      expiryDate: validateExpiry(form.expiryDate),
+    };
+    setFieldErrors(errors);
+    if (hasErrors(errors)) return;
+
+    const limit = Number(form.creditLimit);
 
     setSaving(true);
     try {
@@ -334,8 +363,8 @@ const CardsPage: React.FC = () => {
 
       closeAddDialog();
       await loadCardsPage();
-    } catch {
-      setFormError('Could not add card. Please try again.');
+    } catch (err) {
+      setFormError(getApiErrorMessage(err, 'Could not add card. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -384,7 +413,10 @@ const CardsPage: React.FC = () => {
           size="small"
           fullWidth
           value={form.cardHolderName}
-          onChange={(e) => setForm({ ...form, cardHolderName: e.target.value })}
+          onChange={(e) => updateField('cardHolderName', e.target.value)}
+          error={!!fieldErrors.cardHolderName}
+          helperText={fieldErrors.cardHolderName}
+          slotProps={{ htmlInput: { maxLength: LIMITS.nameMax } }}
         />
 
         <TextField
@@ -393,7 +425,7 @@ const CardsPage: React.FC = () => {
           fullWidth
           select
           value={form.cardType}
-          onChange={(e) => setForm({ ...form, cardType: e.target.value })}
+          onChange={(e) => updateField('cardType', e.target.value)}
         >
           <MenuItem value="visa">Visa</MenuItem>
           <MenuItem value="mastercard">Mastercard</MenuItem>
@@ -406,7 +438,10 @@ const CardsPage: React.FC = () => {
           fullWidth
           type="number"
           value={form.creditLimit}
-          onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
+          onChange={(e) => updateField('creditLimit', e.target.value)}
+          error={!!fieldErrors.creditLimit}
+          helperText={fieldErrors.creditLimit}
+          slotProps={{ htmlInput: { min: 1, max: LIMITS.maxCreditLimit, step: '0.01', inputMode: 'decimal' } }}
         />
 
         <TextField
@@ -414,9 +449,14 @@ const CardsPage: React.FC = () => {
           size="small"
           fullWidth
           type="month"
-          slotProps={{ inputLabel: { shrink: true } }}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { min: monthValue(0), max: monthValue(MAX_EXPIRY_YEARS * 12) },
+          }}
           value={form.expiryDate}
-          onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
+          onChange={(e) => updateField('expiryDate', e.target.value)}
+          error={!!fieldErrors.expiryDate}
+          helperText={fieldErrors.expiryDate}
         />
 
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
