@@ -9,6 +9,7 @@ import MicrosoftIcon from '@mui/icons-material/Window';
 import { login } from '../services/authservice';
 import { useGoogleLogin } from '@react-oauth/google';
 import { googleLogin } from '../services/authservice';
+import { validateEmail, hasErrors, getApiErrorMessage, type FieldErrors } from '../utils/validation';
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -20,26 +21,35 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoToRegister }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<'email' | 'password'>>({});
 
   const handleLogin = async () => {
+    if (loading) return;
     setError('');
 
-    if (!email || !password) {
-      setError('Please enter your email and password.');
-      return;
-    }
+    const errors = {
+      email: validateEmail(email),
+      password: password ? '' : 'Password is required.',
+    };
+    setFieldErrors(errors);
+    if (hasErrors(errors)) return;
 
     try {
       setLoading(true);
 
       await login({
-        email,
+        email: email.trim(),
         password,
       });
 
       onLogin();
-    } catch {
-      setError('Invalid email or password.');
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setError(
+        status === 401 || status === undefined
+          ? 'Invalid email or password.'
+          : getApiErrorMessage(err, 'Could not sign in. Please try again.')
+      );
     } finally {
       setLoading(false);
     }
@@ -144,9 +154,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoToRegister }) => {
             <TextField
               fullWidth
               size="small"
+              type="email"
+              autoComplete="email"
               placeholder="Enter your email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (fieldErrors.email) setFieldErrors((f) => ({ ...f, email: '' }));
+              }}
+              onBlur={() => email && setFieldErrors((f) => ({ ...f, email: validateEmail(email) }))}
+              error={!!fieldErrors.email}
+              helperText={fieldErrors.email}
+              slotProps={{ htmlInput: { maxLength: 254 } }}
             />
           </Box>
 
@@ -158,9 +177,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoToRegister }) => {
               fullWidth
               size="small"
               type="password"
+              autoComplete="current-password"
               placeholder="Enter your password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (fieldErrors.password) setFieldErrors((f) => ({ ...f, password: '' }));
+              }}
+              error={!!fieldErrors.password}
+              helperText={fieldErrors.password}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   handleLogin();

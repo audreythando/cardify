@@ -7,6 +7,12 @@ import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
 import GoogleIcon from '@mui/icons-material/Google';
 import MicrosoftIcon from '@mui/icons-material/Window';
 import { register } from '../services/authservice';
+import {
+  validateEmail, validatePersonName, validateNewPassword, hasErrors,
+  getApiErrorMessage, LIMITS, type FieldErrors,
+} from '../utils/validation';
+
+type RegisterField = 'fullName' | 'email' | 'password';
 
 interface RegisterPageProps {
   onRegister: () => void;
@@ -19,18 +25,33 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<RegisterField>>({});
+
+  const validators: Record<RegisterField, (v: string) => string> = {
+    fullName: (v) => validatePersonName(v, 'Full name'),
+    email: validateEmail,
+    password: validateNewPassword,
+  };
+
+  const clearFieldError = (field: RegisterField) => {
+    if (fieldErrors[field]) setFieldErrors((f) => ({ ...f, [field]: '' }));
+  };
+
+  const validateOnBlur = (field: RegisterField, value: string) => {
+    if (value) setFieldErrors((f) => ({ ...f, [field]: validators[field](value) }));
+  };
 
   const handleRegister = async () => {
+    if (loading) return;
     setError('');
 
-    if (!fullName.trim() || !email.trim() || !password) {
-      setError('Please fill in all fields.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
+    const errors = {
+      fullName: validators.fullName(fullName),
+      email: validators.email(email),
+      password: validators.password(password),
+    };
+    setFieldErrors(errors);
+    if (hasErrors(errors)) return;
 
     try {
       setLoading(true);
@@ -40,12 +61,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
         password,
       });
       onRegister();
-    } catch (err: any) {
-      if (err?.response?.status === 400) {
-        setError('An account with this email already exists.');
-      } else {
-        setError('Could not create account. Please try again.');
-      }
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not create account. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -149,9 +166,14 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
             </Typography>
             <TextField
               fullWidth size="small"
+              autoComplete="name"
               placeholder="Enter your full name"
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => { setFullName(e.target.value); clearFieldError('fullName'); }}
+              onBlur={() => validateOnBlur('fullName', fullName)}
+              error={!!fieldErrors.fullName}
+              helperText={fieldErrors.fullName}
+              slotProps={{ htmlInput: { maxLength: LIMITS.nameMax } }}
             />
           </Box>
           <Box>
@@ -160,9 +182,15 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
             </Typography>
             <TextField
               fullWidth size="small"
+              type="email"
+              autoComplete="email"
               placeholder="Enter your email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); clearFieldError('email'); }}
+              onBlur={() => validateOnBlur('email', email)}
+              error={!!fieldErrors.email}
+              helperText={fieldErrors.email}
+              slotProps={{ htmlInput: { maxLength: LIMITS.emailMax } }}
             />
           </Box>
           <Box>
@@ -172,9 +200,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
             <TextField
               fullWidth size="small"
               type="password"
+              autoComplete="new-password"
               placeholder="Create a password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); clearFieldError('password'); }}
+              error={!!fieldErrors.password}
+              helperText={fieldErrors.password}
+              slotProps={{ htmlInput: { maxLength: LIMITS.passwordMax } }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   handleRegister();
