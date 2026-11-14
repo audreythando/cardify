@@ -1,6 +1,7 @@
 using Cardify.Api.Data;
 using Cardify.Api.DTOs.Transactions;
 using Cardify.Api.Models;
+using Cardify.Api.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,21 @@ public class TransactionsController : ControllerBase
     {
         var userId = GetCurrentUserId();
 
+        if (request.CreditCardId == Guid.Empty)
+        {
+            ModelState.AddModelError(nameof(request.CreditCardId), "Card is required.");
+        }
+
+        if (decimal.Round(request.Amount, 2) != request.Amount)
+        {
+            ModelState.AddModelError(nameof(request.Amount), "Amount can have at most 2 decimal places.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
         var card = await _context.CreditCards
             .FirstOrDefaultAsync(card =>
                 card.Id == request.CreditCardId &&
@@ -35,11 +51,28 @@ public class TransactionsController : ControllerBase
             return NotFound("Card not found.");
         }
 
+        if (!card.IsActive)
+        {
+            ModelState.AddModelError(nameof(request.CreditCardId), "This card is inactive and cannot be used for new transactions.");
+            return ValidationProblem(ModelState);
+        }
+
+        var availableCredit = card.CreditLimit - card.Balance;
+        if (request.Amount > availableCredit)
+        {
+            ModelState.AddModelError(
+                nameof(request.Amount),
+                $"Amount exceeds this card's available credit of R{Math.Max(availableCredit, 0):N2}.");
+            return ValidationProblem(ModelState);
+        }
+
+        var category = SpendingCategories.Normalize(request.Category)!;
+
         var transaction = new Transaction
         {
             CreditCardId = request.CreditCardId,
-            MerchantName = request.MerchantName,
-            Category = request.Category,
+            MerchantName = request.MerchantName.Trim(),
+            Category = category,
             Amount = request.Amount,
             TransactionDate = DateTime.UtcNow,
             Status = "Completed"
@@ -51,7 +84,7 @@ public class TransactionsController : ControllerBase
         var budget = await _context.Budgets
             .FirstOrDefaultAsync(budget =>
                 budget.UserId == userId &&
-                budget.Category.ToLower() == request.Category.ToLower());
+                budget.Category.ToLower() == category.ToLower());
 
         if (budget is not null)
         {
@@ -135,8 +168,14 @@ public class TransactionsController : ControllerBase
             return NotFound("Transaction not found.");
         }
 
-        transaction.MerchantName = request.MerchantName;
-        transaction.Category = request.Category;
+        if (decimal.Round(request.Amount, 2) != request.Amount)
+        {
+            ModelState.AddModelError(nameof(request.Amount), "Amount can have at most 2 decimal places.");
+            return ValidationProblem(ModelState);
+        }
+
+        transaction.MerchantName = request.MerchantName.Trim();
+        transaction.Category = SpendingCategories.Normalize(request.Category)!;
         transaction.Amount = request.Amount;
         transaction.Status = request.Status;
 

@@ -15,6 +15,11 @@ import {
   type Card,
 } from '../services/dashboardService';
 import { SPENDING_CATEGORIES } from '../utils/categories';
+import {
+  validateAmount, hasErrors, getApiErrorMessage, LIMITS, type FieldErrors,
+} from '../utils/validation';
+
+type TransactionField = 'creditCardId' | 'merchantName' | 'amount';
 
 const categoryColors: Record<string, string> = {
   Shopping: '#7C5CFC',
@@ -61,6 +66,35 @@ const TransactionsPage: React.FC = () => {
     category: 'Groceries',
     amount: '',
   });
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<TransactionField>>({});
+
+  // Only active cards can take new transactions.
+  const activeCards = useMemo(() => cards.filter((c) => c.isActive), [cards]);
+  const selectedCard = activeCards.find((c) => c.id === form.creditCardId);
+
+  const updateField = (field: TransactionField | 'category', value: string) => {
+    setForm((f) => ({ ...f, [field]: value }));
+    if (field !== 'category' && fieldErrors[field]) {
+      setFieldErrors((f) => ({ ...f, [field]: '' }));
+    }
+  };
+
+  const validateForm = (): FieldErrors<TransactionField> => {
+    const merchant = form.merchantName.trim();
+    let amountError = validateAmount(form.amount);
+    if (!amountError && selectedCard && Number(form.amount) > selectedCard.availableCredit) {
+      amountError = `Amount exceeds this card's available credit of ${formatZAR(Math.max(selectedCard.availableCredit, 0))}.`;
+    }
+    return {
+      creditCardId: selectedCard ? '' : 'Select a card.',
+      merchantName: !merchant
+        ? 'Merchant name is required.'
+        : merchant.length < 2
+          ? 'Merchant name must be at least 2 characters.'
+          : '',
+      amount: amountError,
+    };
+  };
 
   const loadData = async () => {
     try {
@@ -79,12 +113,13 @@ const TransactionsPage: React.FC = () => {
   }, []);
 
   const resetForm = () => {
-    setForm({ creditCardId: cards[0]?.id ?? '', merchantName: '', category: 'Groceries', amount: '' });
+    setForm({ creditCardId: activeCards[0]?.id ?? '', merchantName: '', category: 'Groceries', amount: '' });
     setFormError('');
+    setFieldErrors({});
   };
 
   const openAddDialog = () => {
-    setForm((f) => ({ ...f, creditCardId: cards[0]?.id ?? '' }));
+    setForm((f) => ({ ...f, creditCardId: activeCards[0]?.id ?? '' }));
     setAddOpen(true);
   };
 
@@ -94,21 +129,14 @@ const TransactionsPage: React.FC = () => {
   };
 
   const handleCreate = async () => {
+    if (saving) return;
     setFormError('');
 
-    if (!form.creditCardId) {
-      setFormError('Add a card first, then record a transaction against it.');
-      return;
-    }
-    if (!form.merchantName.trim()) {
-      setFormError('Merchant name is required.');
-      return;
-    }
-    const amount = parseFloat(form.amount);
-    if (isNaN(amount) || amount <= 0) {
-      setFormError('Enter a valid amount.');
-      return;
-    }
+    const errors = validateForm();
+    setFieldErrors(errors);
+    if (hasErrors(errors)) return;
+
+    const amount = Number(form.amount);
 
     setSaving(true);
     try {
@@ -120,8 +148,8 @@ const TransactionsPage: React.FC = () => {
       });
       closeAddDialog();
       await loadData();
-    } catch {
-      setFormError('Could not add transaction. Please try again.');
+    } catch (err) {
+      setFormError(getApiErrorMessage(err, 'Could not add transaction. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -331,9 +359,9 @@ const TransactionsPage: React.FC = () => {
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           {formError && <Alert severity="error">{formError}</Alert>}
 
-          {cards.length === 0 ? (
+          {activeCards.length === 0 ? (
             <Alert severity="info">
-              You need a card first. Add a card, then record transactions against it.
+              You need an active card first. Add a card, then record transactions against it.
             </Alert>
           ) : (
             <TextField
@@ -342,9 +370,11 @@ const TransactionsPage: React.FC = () => {
               fullWidth
               select
               value={form.creditCardId}
-              onChange={(e) => setForm({ ...form, creditCardId: e.target.value })}
+              onChange={(e) => updateField('creditCardId', e.target.value)}
+              error={!!fieldErrors.creditCardId}
+              helperText={fieldErrors.creditCardId}
             >
-              {cards.map((c) => (
+              {activeCards.map((c) => (
                 <MenuItem key={c.id} value={c.id}>
                   {c.cardType} •••• {c.cardNumber?.slice(-4) || '0000'}
                 </MenuItem>
@@ -357,7 +387,10 @@ const TransactionsPage: React.FC = () => {
             size="small"
             fullWidth
             value={form.merchantName}
-            onChange={(e) => setForm({ ...form, merchantName: e.target.value })}
+            onChange={(e) => updateField('merchantName', e.target.value)}
+            error={!!fieldErrors.merchantName}
+            helperText={fieldErrors.merchantName}
+            slotProps={{ htmlInput: { maxLength: LIMITS.merchantMax } }}
           />
 
           <TextField
@@ -366,7 +399,7 @@ const TransactionsPage: React.FC = () => {
             fullWidth
             select
             value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
+            onChange={(e) => updateField('category', e.target.value)}
           >
             {CATEGORY_OPTIONS.map((c) => (
               <MenuItem key={c} value={c}>
@@ -381,7 +414,13 @@ const TransactionsPage: React.FC = () => {
             fullWidth
             type="number"
             value={form.amount}
-            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            onChange={(e) => updateField('amount', e.target.value)}
+            error={!!fieldErrors.amount}
+            helperText={
+              fieldErrors.amount ||
+              (selectedCard ? `Available credit: ${formatZAR(Math.max(selectedCard.availableCredit, 0))}` : '')
+            }
+            slotProps={{ htmlInput: { min: 0.01, max: LIMITS.maxAmount, step: '0.01', inputMode: 'decimal' } }}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -389,7 +428,7 @@ const TransactionsPage: React.FC = () => {
           <Button
             onClick={handleCreate}
             variant="contained"
-            disabled={saving || cards.length === 0}
+            disabled={saving || activeCards.length === 0}
           >
             {saving ? 'Adding…' : 'Add Transaction'}
           </Button>
