@@ -14,6 +14,7 @@ import {
   type Transaction,
   type Card,
 } from '../services/dashboardService';
+import { SPENDING_CATEGORIES } from '../utils/categories';
 
 const categoryColors: Record<string, string> = {
   Shopping: '#7C5CFC',
@@ -34,13 +35,12 @@ const categoryEmojis: Record<string, string> = {
   Transportation: '🚗',
   'Food & Dining': '🍔',
   Healthcare: '💊',
+  'Bills & Utilities': '💡',
+  Travel: '✈️',
   Other: '💳',
 };
 
-const CATEGORY_OPTIONS = [
-  'Groceries', 'Shopping', 'Entertainment', 'Transportation',
-  'Healthcare', 'Food & Dining', 'Fuel', 'Other',
-];
+const CATEGORY_OPTIONS = SPENDING_CATEGORIES;
 
 const TransactionsPage: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);

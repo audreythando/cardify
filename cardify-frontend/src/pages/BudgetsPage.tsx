@@ -12,6 +12,7 @@ import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import { formatZAR } from '../utils/format';
 import { getBudgets, createBudget, type Budget } from '../services/budgetsService';
+import { SPENDING_CATEGORIES } from '../utils/categories';
 
 const categoryEmojis: Record<string, string> = {
   Shopping: '🛍️',
@@ -26,10 +27,7 @@ const categoryEmojis: Record<string, string> = {
   Other: '📦',
 };
 
-const CATEGORY_OPTIONS = [
-  'Groceries', 'Shopping', 'Entertainment', 'Transportation',
-  'Healthcare', 'Food & Dining', 'Bills & Utilities', 'Fuel', 'Travel', 'Other',
-];
+const CATEGORY_OPTIONS = SPENDING_CATEGORIES;
 
 const BudgetsPage: React.FC = () => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
