@@ -140,7 +140,7 @@ Ask me things like:
     });
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 130px)' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: { xs: 'calc(100dvh - 100px)', md: 'calc(100dvh - 156px)' } }}>
       <Box sx={{ flex: 1, overflowY: 'auto', px: 1, py: 2 }}>
         {messages.map((msg) => (
           <Box
@@ -174,7 +174,7 @@ Ask me things like:
               </Avatar>
             )}
 
-            <Box sx={{ maxWidth: '72%' }}>
+            <Box sx={{ maxWidth: { xs: '85%', sm: '72%' }, minWidth: 0 }}>
               <Box
                 sx={{
                   p: 2,
